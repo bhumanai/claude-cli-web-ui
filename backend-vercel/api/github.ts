@@ -16,8 +16,16 @@ interface GitHubConnectionResponse {
   status: string;
 }
 
-// Mock database for demo (in production, use a real database)
-const connections: Map<string, GitHubConnectionResponse> = new Map();
+// Enhanced connection storage with token
+interface GitHubConnectionWithToken extends GitHubConnectionResponse {
+  token: string;
+}
+
+// Mock database for demo (in production, use encrypted database)
+const connections: Map<string, GitHubConnectionWithToken> = new Map();
+
+// Export connections for use by tasks service
+export { connections };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const path = req.url?.split('?')[0];
@@ -78,21 +86,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // Create new connection (simplified - in production, validate token with GitHub API)
+      // Create new connection WITH TOKEN
       const connectionId = randomUUID();
-      const connection: GitHubConnectionResponse = {
+      const connection: GitHubConnectionWithToken = {
         id: connectionId,
         repository,
         username: 'demo_user', // In production, get from GitHub API
         connected_at: new Date().toISOString(),
         project_id,
-        status: 'active'
+        status: 'active',
+        token // Store the token!
       };
 
       connections.set(connectionId, connection);
 
-      console.log(`Successfully connected repository ${repository}`);
-      return res.status(200).json(connection);
+      // Return connection WITHOUT token for security
+      const { token: _, ...safeConnection } = connection;
+      console.log(`Successfully connected repository ${repository} with token for project ${project_id}`);
+      return res.status(200).json(safeConnection);
 
     } catch (error) {
       console.error('Error connecting repository:', error);
@@ -112,7 +123,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     if (connection) {
-      return res.status(200).json(connection);
+      // Return WITHOUT token for security
+      const { token, ...safeConnection } = connection;
+      return res.status(200).json(safeConnection);
     } else {
       return res.status(200).json(null);
     }

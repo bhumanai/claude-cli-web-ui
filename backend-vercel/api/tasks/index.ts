@@ -24,6 +24,7 @@ import {
 import { Task, TaskCreateRequest, TaskPriority, TaskStatus } from '../../src/types';
 import { RedisService } from '../../src/lib/redis';
 import { GitHubService } from '../../src/lib/github';
+import { GitHubServiceWithConnections } from '../../src/lib/github-with-connections';
 
 const TaskCreateSchema = z.object({
   project_id: z.string().min(1).max(100),
@@ -52,14 +53,13 @@ const TaskListSchema = z.object({
 });
 
 let redisService: RedisService | null = null;
-let githubService: GitHubService | null = null;
+// Remove global githubService - we'll create per-project instances
 
 // Initialize services
 try {
   redisService = new RedisService();
-  githubService = new GitHubService();
 } catch (error) {
-  console.warn('Service initialization failed:', error);
+  console.warn('Redis initialization failed:', error);
 }
 
 async function handler(req: VercelRequest, res: VercelResponse) {
@@ -141,16 +141,16 @@ async function createTask(req: VercelRequest, res: VercelResponse, user: any) {
       parent_task_id: sanitizedData.parent_task_id,
     };
 
-    // Create GitHub issue for task persistence
-    if (githubService) {
-      try {
-        const issueNumber = await githubService.createTaskIssue(task);
-        task.github_issue_number = issueNumber;
-        console.log(`Created GitHub issue #${issueNumber} for task ${task.id}`);
-      } catch (error) {
-        console.warn('Failed to create GitHub issue:', error);
-        // Continue without GitHub issue
-      }
+    // Create GitHub issue for task persistence using project-specific connection
+    try {
+      const projectGitHubService = new GitHubServiceWithConnections(sanitizedData.project_id);
+      const issueNumber = await projectGitHubService.createTaskIssue(task);
+      task.github_issue_number = issueNumber;
+      console.log(`Created GitHub issue #${issueNumber} for task ${task.id} in project ${sanitizedData.project_id}`);
+    } catch (error) {
+      console.warn(`Failed to create GitHub issue for project ${sanitizedData.project_id}:`, error);
+      // Don't continue without GitHub issue - inform the user
+      return sendError(res, 'Failed to create task in GitHub. Please check your GitHub connection.', 'GITHUB_ERROR', 500);
     }
 
     // Add to Redis queue
@@ -193,10 +193,11 @@ async function listTasks(req: VercelRequest, res: VercelResponse, user: any) {
     let tasks: Task[] = [];
     let total = 0;
 
-    // Get tasks from GitHub Issues if available
-    if (githubService) {
+    // Get tasks from GitHub Issues if project_id is specified
+    if (filters.project_id) {
       try {
-        const result = await githubService.listTaskIssues({
+        const projectGitHubService = new GitHubServiceWithConnections(filters.project_id);
+        const result = await projectGitHubService.listTaskIssues({
           state: filters.status ? (filters.status === 'completed' ? 'closed' : 'open') : 'all',
           labels: filters.tags,
           per_page: limit,
@@ -205,7 +206,7 @@ async function listTasks(req: VercelRequest, res: VercelResponse, user: any) {
 
         // Parse GitHub issues to tasks
         for (const issue of result.issues) {
-          const taskData = githubService.parseTaskFromIssue(issue);
+          const taskData = projectGitHubService.parseTaskFromIssue(issue);
           if (taskData) {
             tasks.push({
               ...taskData,
@@ -216,7 +217,7 @@ async function listTasks(req: VercelRequest, res: VercelResponse, user: any) {
 
         total = result.total_count;
       } catch (error) {
-        console.warn('Failed to fetch from GitHub:', error);
+        console.warn(`Failed to fetch from GitHub for project ${filters.project_id}:`, error);
       }
     }
 
