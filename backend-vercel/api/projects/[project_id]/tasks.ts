@@ -4,6 +4,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { GitHubServiceWithConnections } from '../../src/lib/github-with-connections';
 
 interface Task {
   id: string;
@@ -16,6 +17,7 @@ interface Task {
   created_at: string;
   updated_at: string;
   metadata?: Record<string, any>;
+  github_issue_number?: number;
 }
 
 // In-memory storage for tasks (in production, use a database)
@@ -97,6 +99,26 @@ async function createTask(req: VercelRequest, res: VercelResponse, project_id: s
     tasksStore.set(task.id, task);
 
     console.log(`Created task ${task.id}: ${task.name} for project ${project_id}`);
+
+    // Create GitHub issue with @terragon-labs mention
+    try {
+      const githubService = new GitHubServiceWithConnections(project_id);
+      const issueNumber = await githubService.createTaskIssue(task as any);
+      
+      // Update task with GitHub issue number
+      task.github_issue_number = issueNumber;
+      tasksStore.set(task.id, task);
+      
+      console.log(`Created GitHub issue #${issueNumber} for task ${task.id}`);
+    } catch (githubError) {
+      // Log error but don't fail task creation
+      console.error('Failed to create GitHub issue:', githubError);
+      // Add error to metadata so user knows GitHub sync failed
+      task.metadata = {
+        ...task.metadata,
+        github_error: 'Failed to create GitHub issue. Check GitHub connection settings.'
+      };
+    }
 
     return res.status(201).json({ data: task, error: null });
   } catch (error) {

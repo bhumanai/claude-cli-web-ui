@@ -37,6 +37,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onProjectChang
         const active = projectsList.find(p => p.id === savedActiveId)
         if (active) {
           setActiveProject(active)
+          localStorage.setItem('claude-cli-current-project', active.id)
           if (onProjectChange) {
             onProjectChange(active)
           }
@@ -44,6 +45,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onProjectChang
           // Saved project not found, use default
           setActiveProject(defaultProject)
           localStorage.setItem('activeProjectId', defaultProject.id)
+          localStorage.setItem('claude-cli-current-project', defaultProject.id)
           if (onProjectChange) {
             onProjectChange(defaultProject)
           }
@@ -52,6 +54,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onProjectChang
         // No saved project, use default
         setActiveProject(defaultProject)
         localStorage.setItem('activeProjectId', defaultProject.id)
+        localStorage.setItem('claude-cli-current-project', defaultProject.id)
         if (onProjectChange) {
           onProjectChange(defaultProject)
         }
@@ -68,6 +71,8 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onProjectChang
     try {
       // For filesystem projects, just save locally and notify parent
       localStorage.setItem('activeProjectId', project.id)
+      // Also save for command execution context
+      localStorage.setItem('claude-cli-current-project', project.id)
       setActiveProject(project)
       setIsOpen(false)
       if (onProjectChange) {

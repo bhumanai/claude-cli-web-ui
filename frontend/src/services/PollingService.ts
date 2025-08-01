@@ -134,7 +134,15 @@ export class PollingService {
 
   async sendCommand(command: string): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/commands/execute`, {
+      // Check if this is a /plan command and route accordingly
+      const endpoint = command.trim().toLowerCase().startsWith('/plan') 
+        ? `${this.baseUrl}/api/commands/plan`
+        : `${this.baseUrl}/api/commands/execute`;
+      
+      // Get current project_id from localStorage
+      const currentProject = localStorage.getItem('claude-cli-current-project');
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +150,9 @@ export class PollingService {
         },
         body: JSON.stringify({
           sessionId: this.sessionId,
-          command
+          session_id: this.sessionId, // Some endpoints use snake_case
+          command,
+          project_id: currentProject || undefined
         })
       })
       
@@ -156,7 +166,7 @@ export class PollingService {
       this.handleMessage({
         type: 'command_started',
         data: {
-          id: result.id,
+          id: result.id || `cmd_${Date.now()}`,
           command: command
         },
         timestamp: Date.now()
@@ -167,7 +177,7 @@ export class PollingService {
         this.handleMessage({
           type: 'command_update',
           data: {
-            id: result.id,
+            id: result.id || `cmd_${Date.now()}`,
             output: [{content: result.output || 'Command sent to backend', type: 'stdout'}],
             isPartial: false,
             status: 'completed'
@@ -181,5 +191,15 @@ export class PollingService {
       console.error('Failed to execute command:', error)
       throw new Error('BACKEND REQUIRED - NO MOCK MODE! Run the full backend!')
     }
+  }
+
+  // Alias for HybridConnectionService compatibility
+  onConnection(handler: (isConnected: boolean) => void): void {
+    this.onConnectionChange(handler)
+  }
+
+  // Add executeCommand method for HybridConnectionService
+  async executeCommand(command: string): Promise<any> {
+    return this.sendCommand(command)
   }
 }
