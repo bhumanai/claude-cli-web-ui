@@ -56,7 +56,7 @@ class SimpleContextInjector:
             except:
                 pass
         
-        # Add meta-agent rules
+        # Add meta-agent rules and available commands
         if "meta" in prompt or "agent" in prompt or "task" in prompt:
             rules = """
 === Meta-Agent Rules ===
@@ -66,6 +66,28 @@ class SimpleContextInjector:
 4. Check .claude/meta_agent_state.json for current state
 """
             context_parts.append(rules)
+            
+            # List available slash commands
+            commands_dir = self.project_dir / '.claude' / 'commands'
+            if commands_dir.exists():
+                commands = []
+                for cmd_file in sorted(commands_dir.glob("*.md")):
+                    if not cmd_file.stem.startswith('README'):
+                        commands.append(f"/{cmd_file.stem}")
+                
+                if commands:
+                    commands_list = """
+=== Available Slash Commands ===
+Commands the meta-agent can orchestrate:
+""" + "\n".join(commands) + """
+
+Key commands for task execution:
+- /smart-task: Execute complex tasks with agent orchestration
+- /plan: Create structured plans and GitHub issues
+- /redteam: Run security testing on implementations
+- /complete-task: Mark tasks as complete with documentation
+"""
+                    context_parts.append(commands_list)
         
         if context_parts:
             return {

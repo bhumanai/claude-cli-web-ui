@@ -78,6 +78,7 @@ export interface User {
   username: string;
   email?: string;
   created_at: string;
+  user_id?: string; // For backwards compatibility
 }
 
 export interface AuthTokens {
@@ -101,6 +102,8 @@ export interface SSEMessage {
   data: any;
   id?: string;
   retry?: number;
+  event?: string; // For SSE events
+  timestamp?: Date; // For event timestamps
 }
 
 export interface QueueStatus {
@@ -108,6 +111,8 @@ export interface QueueStatus {
   waiting: number;
   completed: number;
   failed: number;
+  completed_tasks?: number; // Legacy field
+  failed_tasks?: number; // Legacy field
 }
 
 export interface TerragoWorker {

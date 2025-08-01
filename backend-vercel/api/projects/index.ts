@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('API Handler Error:', error);
     return res.status(500).json({ 
       data: null, 
-      error: { message: `Internal server error: ${error.message}`, code: 'INTERNAL_ERROR' } 
+      error: { message: `Internal server error: ${error instanceof Error ? error.message : String(error)}`, code: 'INTERNAL_ERROR' } 
     });
   }
 }

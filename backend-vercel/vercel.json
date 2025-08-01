@@ -16,7 +16,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://claudeui-6gykcm69k-bhuman.vercel.app"
+          "value": "*"
         },
         {
           "key": "Access-Control-Allow-Methods",

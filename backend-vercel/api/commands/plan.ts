@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       priority: 'medium' as const,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      metadata: {},
+      metadata: {} as Record<string, any>,
       github_issue_number: undefined as number | undefined
     };
 

@@ -55,7 +55,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     'tasks',
     'queues',
     'workers',
-    `user:${auth.user.user_id}`,
+    `user:${auth.user.user_id || auth.user.id}`,
     `project:${req.query.project_id}`,
   ].filter(Boolean);
 
@@ -72,12 +72,13 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
 
     // Send initial connection message
-    const connectionMessage = {
+    const connectionMessage: SSEMessage = {
       id: `connect_${Date.now()}`,
+      type: 'connected',
       event: 'connected',
       data: {
         channel,
-        user_id: auth.user.user_id,
+        user_id: auth.user.user_id || auth.user.id,
         timestamp: new Date().toISOString(),
       },
       timestamp: new Date(),
@@ -87,8 +88,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!redisService) {
       // Send error message and close connection
-      const errorMessage = {
+      const errorMessage: SSEMessage = {
         id: `error_${Date.now()}`,
+        type: 'error',
         event: 'error',
         data: {
           message: 'Real-time service not available',
@@ -134,8 +136,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Send heartbeat every 30 seconds
         if (Date.now() % 30000 < 10000) {
-          const heartbeat = {
+          const heartbeat: SSEMessage = {
             id: `heartbeat_${Date.now()}`,
+            type: 'heartbeat',
             event: 'heartbeat',
             data: {
               timestamp: new Date().toISOString(),
@@ -188,7 +191,7 @@ function sendSSEMessage(res: VercelResponse, message: SSEMessage): void {
   try {
     const data = JSON.stringify(message.data);
     res.write(`id: ${message.id}\n`);
-    res.write(`event: ${message.event}\n`);
+    res.write(`event: ${message.event || message.type}\n`);
     res.write(`data: ${data}\n\n`);
   } catch (error) {
     console.error('Failed to send SSE message:', error);
