@@ -1,6 +1,8 @@
-# Agentic Development System
+# Claude CLI Web UI - Agentic Development System
 
 Orchestrate AI agents for development tasks using simple slash commands in Claude Code.
+
+Last updated: 2025-08-01
 
 ## Install
 
