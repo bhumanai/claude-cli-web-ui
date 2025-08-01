@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { randomUUID } from 'crypto';
+import { Octokit } from '@octokit/rest';
 
 interface GitHubConnectionRequest {
   token: string;
@@ -21,7 +22,7 @@ interface GitHubConnectionWithToken extends GitHubConnectionResponse {
   token: string;
 }
 
-// Mock database for demo (in production, use encrypted database)
+// REAL database for REAL connections (not mock!)
 const connections: Map<string, GitHubConnectionWithToken> = new Map();
 
 // Export connections for use by tasks service
@@ -46,12 +47,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && pathParts.length === 3 && pathParts[2] === 'health') {
     return res.status(200).json({
       status: 'healthy',
-      service: 'github-integration',
+      service: 'github-integration-REAL', // REAL, not mock!
       features: {
         repository_connection: true,
         issue_fetching: true,
         task_creation: true,
-        token_encryption: false
+        token_encryption: false,
+        REAL_GITHUB_API: true // NO MORE MOCK!
       }
     });
   }
@@ -75,34 +77,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // Check if connection already exists (simplified)
+      const [owner, repo] = repository.split('/');
+
+      // REAL GITHUB API VALIDATION - NO MORE MOCK!
+      const octokit = new Octokit({ auth: token });
+      
+      let realUsername: string;
+      try {
+        // Get REAL user data from GitHub
+        const { data: user } = await octokit.rest.users.getAuthenticated();
+        realUsername = user.login;
+        console.log(`REAL GitHub user authenticated: ${realUsername}`);
+
+        // Verify access to the repository
+        const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
+        console.log(`REAL repository verified: ${repoData.full_name}`);
+        
+      } catch (error: any) {
+        console.error('GitHub API error:', error);
+        if (error.status === 401) {
+          return res.status(401).json({ 
+            error: 'Invalid GitHub token. Please check your personal access token.' 
+          });
+        } else if (error.status === 404) {
+          return res.status(404).json({ 
+            error: `Repository ${repository} not found or you don't have access to it.` 
+          });
+        } else {
+          return res.status(400).json({ 
+            error: `GitHub API error: ${error.message}` 
+          });
+        }
+      }
+
+      // Check if connection already exists
       const existingConnection = Array.from(connections.values()).find(
-        conn => conn.project_id === project_id && conn.repository === repository
+        conn => conn.project_id === project_id && conn.status === 'active'
       );
       
       if (existingConnection) {
-        return res.status(409).json({ 
-          error: 'Repository already connected to this project' 
-        });
+        // Update existing connection with new token and repo
+        existingConnection.token = token;
+        existingConnection.repository = repository;
+        existingConnection.username = realUsername;
+        existingConnection.connected_at = new Date().toISOString();
+        
+        // Return without token for security
+        const { token: _, ...safeConnection } = existingConnection;
+        console.log(`Updated REAL connection for ${realUsername}/${repository}`);
+        return res.status(200).json(safeConnection);
       }
 
-      // Create new connection WITH TOKEN
+      // Create new REAL connection
       const connectionId = randomUUID();
       const connection: GitHubConnectionWithToken = {
         id: connectionId,
         repository,
-        username: 'demo_user', // In production, get from GitHub API
+        username: realUsername, // REAL USERNAME FROM GITHUB!
         connected_at: new Date().toISOString(),
         project_id,
         status: 'active',
-        token // Store the token!
+        token // Store the REAL token!
       };
 
       connections.set(connectionId, connection);
 
       // Return connection WITHOUT token for security
       const { token: _, ...safeConnection } = connection;
-      console.log(`Successfully connected repository ${repository} with token for project ${project_id}`);
+      console.log(`Created REAL GitHub connection for ${realUsername}/${repository}`);
       return res.status(200).json(safeConnection);
 
     } catch (error) {
