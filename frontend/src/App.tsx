@@ -247,7 +247,16 @@ function AppContent() {
       }
       
       const data = await response.json()
-      localStorage.setItem('claude-cli-auth', data.token || data.access_token)
+      
+      // Store the authentication token
+      const authToken = data.token || data.access_token
+      localStorage.setItem('claude-cli-auth', authToken)
+      
+      // Store user data if provided
+      if (data.user) {
+        localStorage.setItem('claude-cli-user', JSON.stringify(data.user))
+      }
+      
       setIsAuthenticated(true)
       setLoginError(null)
       notifySuccess('Login successful!')
