@@ -464,12 +464,13 @@ export class AccessibilityManager {
   }
   
   private init() {
-    // Create skip links
-    this.skipLinksContainer = skipLinks.create([
-      { href: '#main-content', text: 'Skip to main content' },
-      { href: '#navigation', text: 'Skip to navigation' },
-      { href: '#footer', text: 'Skip to footer' }
-    ])
+    // Skip links disabled for cleaner UI
+    // Uncomment to re-enable accessibility skip links
+    // this.skipLinksContainer = skipLinks.create([
+    //   { href: '#main-content', text: 'Skip to main content' },
+    //   { href: '#navigation', text: 'Skip to navigation' },
+    //   { href: '#footer', text: 'Skip to footer' }
+    // ])
     
     // Monitor for accessibility issues in development
     if (process.env.NODE_ENV === 'development') {
