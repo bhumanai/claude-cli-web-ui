@@ -1,0 +1,149 @@
+# Terraform variables example file for Claude CLI Web UI
+# Copy this file to terraform.tfvars and customize for your environment
+
+# =============================================================================
+# GENERAL CONFIGURATION
+# =============================================================================
+
+project_name = "claude-cli"
+environment  = "production"
+owner        = "platform-team"
+aws_region   = "us-east-1"
+
+# =============================================================================
+# EKS CLUSTER CONFIGURATION
+# =============================================================================
+
+kubernetes_version = "1.28"
+
+# Restrict this to your office/VPN CIDR blocks in production
+cluster_endpoint_public_access_cidrs = [
+  "0.0.0.0/0"  # CHANGE THIS: Replace with your IP ranges
+]
+
+# =============================================================================
+# NODE GROUP CONFIGURATION
+# =============================================================================
+
+# Main node group (on-demand instances)
+node_instance_types      = ["t3.medium", "t3.large"]
+node_group_min_size     = 3
+node_group_max_size     = 10
+node_group_desired_size = 3
+node_capacity_type      = "ON_DEMAND"
+node_disk_size          = 50
+
+# Spot instance configuration for cost optimization
+spot_instance_types = ["t3.medium", "t3.large", "m5.large", "m5.xlarge"]
+spot_max_size      = 5
+spot_desired_size  = 0  # Start with 0, can be scaled up as needed
+
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+
+postgres_version           = "15.4"
+postgres_instance_class    = "db.t3.small"  # Upgrade from micro for production
+postgres_allocated_storage = 50             # Increased for production
+postgres_max_allocated_storage = 200
+postgres_database_name     = "claude_cli"
+postgres_username          = "claude_user"
+postgres_password          = "CHANGE_ME_SECURE_PASSWORD_123!"  # MUST CHANGE
+postgres_backup_retention  = 7
+
+# =============================================================================
+# REDIS CONFIGURATION
+# =============================================================================
+
+redis_node_type              = "cache.t3.small"  # Upgrade from micro for production
+redis_num_cache_nodes        = 1
+redis_auth_token            = "CHANGE_ME_SECURE_REDIS_TOKEN_456!"  # MUST CHANGE
+redis_snapshot_retention_limit = 5
+
+# =============================================================================
+# DOMAIN AND SSL CONFIGURATION
+# =============================================================================
+
+domain_name     = "claude.yourdomain.com"  # CHANGE THIS
+certificate_arn = ""  # Leave empty to create new certificate
+
+# =============================================================================
+# MONITORING AND LOGGING
+# =============================================================================
+
+log_retention_days = 14
+alert_email       = "admin@yourdomain.com"  # CHANGE THIS
+slack_webhook_url = ""  # Optional: Add your Slack webhook URL
+
+# =============================================================================
+# COST OPTIMIZATION
+# =============================================================================
+
+enable_spot_instances     = true
+enable_scheduled_scaling  = false  # Enable for predictable workloads
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+enable_vpc_flow_logs = true
+enable_guardduty     = true
+enable_config        = true
+
+# =============================================================================
+# HIGH AVAILABILITY
+# =============================================================================
+
+multi_az_deployment        = true
+enable_cross_region_backup = false  # Enable for critical production workloads
+
+# =============================================================================
+# PERFORMANCE AND MONITORING
+# =============================================================================
+
+enable_enhanced_monitoring   = true
+enable_performance_insights = true
+
+# =============================================================================
+# BACKUP CONFIGURATION
+# =============================================================================
+
+backup_retention_days = 30
+backup_schedule      = "0 2 * * *"  # Daily at 2 AM UTC
+
+# =============================================================================
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# =============================================================================
+
+# You can override specific values per environment
+environment_config = {
+  # Example overrides for production
+  node_group_min_size     = 3
+  node_group_max_size     = 15
+  postgres_instance_class = "db.t3.medium"
+  redis_node_type        = "cache.t3.medium"
+  backup_retention_days  = 30
+}
+
+# =============================================================================
+# DEVELOPMENT/STAGING OVERRIDES
+# =============================================================================
+
+# Uncomment and adjust for development/staging environments
+# environment = "staging"
+# 
+# node_group_min_size     = 1
+# node_group_max_size     = 3
+# node_group_desired_size = 1
+# postgres_instance_class = "db.t3.micro"
+# redis_node_type        = "cache.t3.micro"
+# backup_retention_days  = 3
+# enable_spot_instances  = true
+# 
+# environment_config = {
+#   node_group_min_size     = 1
+#   node_group_max_size     = 3
+#   postgres_instance_class = "db.t3.micro"
+#   redis_node_type        = "cache.t3.micro"
+#   backup_retention_days  = 3
+# }

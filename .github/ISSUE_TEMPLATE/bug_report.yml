@@ -1,0 +1,155 @@
+name: Bug Report
+description: Report a bug or issue with the Claude CLI Web UI
+title: "[BUG] "
+labels: ["type:bug", "status:triage", "priority:medium"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the following information to help us resolve the issue quickly.
+
+  - type: input
+    id: bug-summary
+    attributes:
+      label: Bug Summary
+      description: A brief summary of the bug
+      placeholder: "Describe the issue in one sentence..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - low
+        - medium
+        - high
+        - critical
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      options:
+        - frontend
+        - backend
+        - api
+        - authentication
+        - task-queue
+        - github-integration
+        - terragon-integration
+        - redis-cache
+        - monitoring
+        - deployment
+        - other
+      default: 10
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Detailed Description
+      description: Provide a detailed description of the bug
+      placeholder: "What exactly is happening? What did you expect to happen?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the bug
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: "Describe what you expected to happen..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "Describe what actually happened..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: Information about your environment
+      value: |
+        - **Browser**: 
+        - **Browser Version**: 
+        - **Operating System**: 
+        - **Device**: 
+        - **Environment**: (development/staging/production)
+        - **URL**: 
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-logs
+    attributes:
+      label: Error Logs
+      description: Any error messages, stack traces, or console logs
+      placeholder: "Paste any relevant error messages or logs here..."
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Add screenshots if applicable
+      placeholder: "Drag and drop screenshots here or paste URLs..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Please check all that apply
+      options:
+        - label: This bug is blocking my work
+          required: false
+        - label: This bug affects multiple users
+          required: false
+        - label: This bug occurs consistently
+          required: false
+        - label: This bug is a security issue
+          required: false
+        - label: I have checked for duplicate issues
+          required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Is there a workaround for this issue?
+      placeholder: "Describe any workarounds you've found..."
+    validations:
+      required: false

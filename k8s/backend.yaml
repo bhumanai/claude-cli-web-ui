@@ -1,0 +1,303 @@
+# Backend deployment for Claude CLI Web UI
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claude-backend
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+    component: backend
+spec:
+  replicas: 3  # High availability with 3 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: claude-cli
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: claude-cli
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+        runAsNonRoot: true
+      containers:
+      - name: backend
+        image: claude-cli/backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        # Application configuration
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: DEBUG
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: LOG_LEVEL
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8000"
+        
+        # Security configuration
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: claude-cli-secrets
+              key: secret-key
+        - name: ENABLE_AUTH
+          value: "true"
+        
+        # Database configuration
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: claude-cli-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: claude-cli-secrets
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: claude-cli-secrets
+              key: postgres-db
+        - name: DATABASE_ECHO
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: DATABASE_ECHO
+        - name: DATABASE_POOL_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: DATABASE_POOL_SIZE
+        - name: DATABASE_MAX_OVERFLOW
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: DATABASE_MAX_OVERFLOW
+        
+        # Redis configuration
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis:6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: claude-cli-secrets
+              key: redis-password
+        - name: USE_REDIS
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: USE_REDIS
+        - name: REDIS_MAX_RETRIES
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: REDIS_MAX_RETRIES
+        - name: REDIS_RETRY_DELAY
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: REDIS_RETRY_DELAY
+        
+        # Performance configuration
+        - name: MAX_CONCURRENT_COMMANDS
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: MAX_CONCURRENT_COMMANDS
+        - name: SESSION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: SESSION_TIMEOUT
+        - name: RATE_LIMIT_PER_MINUTE
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: RATE_LIMIT_PER_MINUTE
+        
+        # CORS configuration
+        - name: ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: claude-cli-config
+              key: ALLOWED_ORIGINS
+        
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: app-logs
+          mountPath: /app/logs
+        
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+      
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: app-logs
+        emptyDir:
+          sizeLimit: 1Gi
+      
+      restartPolicy: Always
+      
+      # Pod disruption budget for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                  - backend
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: claude-backend
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+    protocol: TCP
+  selector:
+    app: claude-cli
+    component: backend
+
+---
+# Horizontal Pod Autoscaler for backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: claude-backend-hpa
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+    component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: claude-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+# Pod Disruption Budget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: claude-backend-pdb
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+    component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: claude-cli
+      component: backend

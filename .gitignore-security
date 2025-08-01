@@ -1,0 +1,17 @@
+# Security-sensitive files
+DEPLOYMENT_CHECKLIST.md
+EMERGENCY_SECURITY_BREACH.md
+POST_INCIDENT_SECURITY_TESTING.md
+EMERGENCY_CREDENTIAL_ROTATION.sh
+backend/tests/security/test_credential_rotation_validation.py
+INCIDENT_RESPONSE_STATUS.md
+IMMEDIATE_ACTION_PLAN.md
+
+# Any file with credentials
+*.pem
+*.key
+*.env
+.env.*
+*secrets*
+*credential*
+*token*

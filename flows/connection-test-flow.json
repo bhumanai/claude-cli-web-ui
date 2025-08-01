@@ -1,0 +1,43 @@
+{
+  "id": "connection-test-flow",
+  "name": "WebSocket Connection Testing Flow",
+  "description": "Test WebSocket connection, fallback mechanisms, and error handling",
+  "steps": [
+    {
+      "id": "initial-load",
+      "action": "navigate",
+      "url": "{{base_url}}",
+      "wait_for": "page_load",
+      "timeout": 10000
+    },
+    {
+      "id": "check-connection",
+      "action": "wait_for_element",
+      "selector": ".connection-status",
+      "timeout": 5000
+    },
+    {
+      "id": "verify-no-errors",
+      "action": "check_no_element",
+      "selector": "[role='alert']",
+      "description": "Ensure no error modals appear"
+    },
+    {
+      "id": "execute-command",
+      "action": "type",
+      "selector": "input[placeholder*='command']",
+      "text": "help"
+    },
+    {
+      "id": "submit-command",
+      "action": "press_key",
+      "key": "Enter"
+    },
+    {
+      "id": "verify-response",
+      "action": "wait_for_text",
+      "text": "Available commands",
+      "timeout": 5000
+    }
+  ]
+}

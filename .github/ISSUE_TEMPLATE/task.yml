@@ -1,0 +1,141 @@
+name: Task Execution Request
+description: Create a new task for the Claude CLI Web UI system
+title: "[TASK] "
+labels: ["status:pending", "priority:medium", "type:task"]
+assignees: []
+
+body:
+  - type: input
+    id: task-title
+    attributes:
+      label: Task Title
+      description: Brief description of the task to be executed
+      placeholder: "Execute Claude command..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Task execution priority level
+      options:
+        - low
+        - medium
+        - high
+        - urgent
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: task-type
+    attributes:
+      label: Task Type
+      description: Type of task to be executed
+      options:
+        - command
+        - chain
+        - workflow
+        - terragon
+        - custom
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: task-metadata
+    attributes:
+      label: Task Metadata
+      description: JSON metadata for task execution and configuration
+      placeholder: |
+        {
+          "command": "/help",
+          "timeout": 300,
+          "environment": "production",
+          "retry_count": 3,
+          "callback_url": "https://your-domain.vercel.app/api/callbacks/task-complete"
+        }
+      value: |
+        {
+          "command": "/help",
+          "timeout": 300,
+          "environment": "production"
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: task-description
+    attributes:
+      label: Detailed Description
+      description: Detailed description of what the task should accomplish
+      placeholder: "Provide a detailed description of the task requirements, expected outputs, and any special considerations..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: execution-environment
+    attributes:
+      label: Execution Environment
+      description: Environment where the task should be executed
+      options:
+        - development
+        - staging
+        - production
+      default: 2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: task-options
+    attributes:
+      label: Task Options
+      description: Select applicable options for this task
+      options:
+        - label: Require approval before execution
+          required: false
+        - label: Send notifications on completion
+          required: false
+        - label: Enable verbose logging
+          required: false
+        - label: Use Terragon worker for execution
+          required: false
+        - label: Enable retry on failure
+          required: false
+
+  - type: input
+    id: assigned-agent
+    attributes:
+      label: Assigned Agent (Optional)
+      description: Specific agent to handle this task (leave empty for auto-assignment)
+      placeholder: "e.g., deployment-engineer, python-pro, security-auditor"
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies or prerequisites for this task
+      placeholder: "- Task #123 must be completed first\n- Redis connection must be available\n- GitHub API access required"
+    validations:
+      required: false
+
+  - type: input
+    id: estimated-duration
+    attributes:
+      label: Estimated Duration (minutes)
+      description: Expected duration for task completion
+      placeholder: "30"
+    validations:
+      required: false
+
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success Criteria
+      description: Define what constitutes successful completion of this task
+      placeholder: "- Command executes without errors\n- Expected output is generated\n- All tests pass\n- Documentation is updated"
+    validations:
+      required: false

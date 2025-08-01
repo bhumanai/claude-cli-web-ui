@@ -1,0 +1,140 @@
+# ConfigMap for Claude CLI Web UI
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: claude-cli-config
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+data:
+  # Application configuration
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  
+  # Performance settings
+  MAX_CONCURRENT_COMMANDS: "10"
+  SESSION_TIMEOUT: "3600"
+  RATE_LIMIT_PER_MINUTE: "100"
+  
+  # Database configuration
+  DATABASE_ECHO: "false"
+  DATABASE_POOL_SIZE: "10"
+  DATABASE_MAX_OVERFLOW: "20"
+  
+  # Redis configuration
+  USE_REDIS: "true"
+  REDIS_MAX_RETRIES: "3"
+  REDIS_RETRY_DELAY: "1"
+  
+  # CORS configuration
+  ALLOWED_ORIGINS: "https://claude.yourdomain.com"
+
+---
+# Nginx configuration for frontend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: claude-cli
+  labels:
+    app: claude-cli
+    component: frontend
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        server_tokens off;
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_min_length 1000;
+        gzip_types
+            application/javascript
+            application/json
+            text/css
+            text/plain
+            text/xml
+            application/xml
+            application/xml+rss;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+  default.conf: |
+    server {
+        listen 3000;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Health check
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # API proxy
+        location /api/ {
+            proxy_pass http://claude-backend:8000/api/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        # WebSocket proxy
+        location /ws {
+            proxy_pass http://claude-backend:8000/ws;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # SPA routing
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        error_page 404 /index.html;
+    }

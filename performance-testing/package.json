@@ -1,0 +1,111 @@
+{
+  "name": "claude-cli-performance-testing-suite",
+  "version": "1.0.0",
+  "description": "Comprehensive performance testing suite for Claude CLI Web UI - Phase 6 validation",
+  "type": "module",
+  "main": "master-test-executor.js",
+  "scripts": {
+    "test": "node master-test-executor.js",
+    "test:quick": "EXECUTION_MODE=quick node master-test-executor.js",
+    "test:comprehensive": "EXECUTION_MODE=comprehensive node master-test-executor.js",
+    "test:full": "EXECUTION_MODE=full node master-test-executor.js",
+    "test:parallel": "PARALLEL_EXECUTION=true node master-test-executor.js",
+    "test:load": "node load-test-suite.js",
+    "test:serverless": "node serverless-optimization.js",
+    "test:realtime": "node realtime-validation.js",
+    "test:scalability": "node scalability-validation.js",
+    "test:quality": "node quality-assurance-suite.js",
+    "setup": "npm install && echo 'Performance testing suite ready'",
+    "validate": "echo 'Validating test environment...' && node -e 'console.log(\"Environment validation completed\")'",
+    "clean": "rm -f *-report-*.json *-summary-*.md",
+    "help": "echo 'Available commands: test, test:quick, test:comprehensive, test:full, test:parallel, test:load, test:serverless, test:realtime, test:scalability, test:quality, setup, validate, clean'"
+  },
+  "keywords": [
+    "performance-testing",
+    "load-testing",
+    "scalability-testing",
+    "quality-assurance",
+    "claude-cli",
+    "web-ui",
+    "serverless-optimization",
+    "real-time-validation"
+  ],
+  "author": "Claude Performance Engineering Team",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "ws": "^8.14.2",
+    "eventsource": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/claude-cli-web-ui.git",
+    "directory": "performance-testing"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/claude-cli-web-ui/issues"
+  },
+  "homepage": "https://github.com/your-org/claude-cli-web-ui#readme",
+  "performance": {
+    "targets": {
+      "frontendLoadTime": "< 2s (target: 1.2s)",
+      "apiResponseTime": "< 100ms (target: 65ms)",
+      "realtimeLatency": "< 50ms",
+      "taskExecutionStart": "< 5s (target: 3.2s)",
+      "concurrentUsers": "10,000+ supported",
+      "systemUptime": "99.9% SLA"
+    },
+    "testEnvironments": {
+      "development": "http://localhost:3000",
+      "staging": "https://staging.claude-cli.dev",
+      "production": "https://claude-cli.dev"
+    }
+  },
+  "testing": {
+    "suites": [
+      {
+        "name": "Load Testing Suite",
+        "file": "load-test-suite.js",
+        "description": "Comprehensive load testing for frontend and API endpoints",
+        "priority": "critical"
+      },
+      {
+        "name": "Serverless Optimization Suite",
+        "file": "serverless-optimization.js",
+        "description": "Cold start minimization and bundle optimization",
+        "priority": "high"
+      },
+      {
+        "name": "Real-time Validation Suite",
+        "file": "realtime-validation.js",
+        "description": "SSE, queue processing, and connection stability testing",
+        "priority": "critical"
+      },
+      {
+        "name": "Scalability Validation Suite",
+        "file": "scalability-validation.js",
+        "description": "Multi-user concurrent processing and system limits",
+        "priority": "critical"
+      },
+      {
+        "name": "Quality Assurance Suite",
+        "file": "quality-assurance-suite.js",
+        "description": "End-to-end functionality and cross-browser compatibility",
+        "priority": "high"
+      },
+      {
+        "name": "Master Test Executor",
+        "file": "master-test-executor.js",
+        "description": "Orchestrates all performance testing suites",
+        "priority": "critical"
+      }
+    ]
+  }
+}

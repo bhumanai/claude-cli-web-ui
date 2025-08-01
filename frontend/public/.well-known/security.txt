@@ -1,0 +1,30 @@
+Contact: security@claude-cli.app
+Expires: 2025-12-31T23:59:59.000Z
+Encryption: https://claude-cli.app/.well-known/pgp-key.txt
+Acknowledgments: https://claude-cli.app/security/hall-of-fame
+Policy: https://claude-cli.app/security/policy
+Hiring: https://claude-cli.app/careers
+
+# Security Policy for Claude CLI Web UI
+# 
+# We take security seriously and appreciate responsible disclosure
+# of vulnerabilities. Please report security issues to the contact
+# address above.
+#
+# Scope:
+# - All subdomains of claude-cli.app
+# - Mobile applications
+# - Browser extensions
+#
+# Out of scope:
+# - Social engineering attacks
+# - Physical attacks
+# - DoS/DDoS attacks
+# - Third-party services
+#
+# Response time:
+# We aim to respond to security reports within 48 hours.
+#
+# Reward program:
+# We offer recognition and potential rewards for valid security
+# reports. Please see our policy page for details.

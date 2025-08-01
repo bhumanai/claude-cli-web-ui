@@ -1,0 +1,74 @@
+# Bulletproof Visual Testing Framework - Git Ignore
+
+# Artifacts and test outputs
+artifacts/
+*.log
+test_runner.log
+
+# Screenshots and videos
+*.png
+*.mp4
+*.gif
+*.webm
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Archive files
+*.tar.gz
+*.zip
+
+# Personal configuration overrides
+local_config.json
+.env.local

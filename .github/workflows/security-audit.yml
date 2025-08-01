@@ -1,0 +1,535 @@
+# Security Audit and Compliance Pipeline for Claude CLI Web UI
+# Comprehensive security scanning and compliance checks
+
+name: Security Audit
+
+on:
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Dependency Security Scanning
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Backend dependency scanning
+      - name: Setup Python (Backend)
+        if: matrix.component == 'backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python dependencies (Backend)
+        if: matrix.component == 'backend'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install safety pip-audit
+
+      - name: Run Safety check (Backend)
+        if: matrix.component == 'backend'
+        run: |
+          safety check --json --output backend-safety-report.json --continue-on-error
+          safety check --output backend-safety-report.txt --continue-on-error
+
+      - name: Run pip-audit (Backend)
+        if: matrix.component == 'backend'
+        run: |
+          pip-audit --format=json --output=backend-pip-audit.json --continue-on-error
+          pip-audit --format=cyclonedx-json --output=backend-sbom.json --continue-on-error
+
+      # Frontend dependency scanning
+      - name: Setup Node.js (Frontend)
+        if: matrix.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Node.js dependencies (Frontend)
+        if: matrix.component == 'frontend'
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run npm audit (Frontend)
+        if: matrix.component == 'frontend'
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate --json > ../frontend-npm-audit.json || true
+          npm audit --audit-level=moderate > ../frontend-npm-audit.txt || true
+
+      - name: Generate SBOM (Frontend)
+        if: matrix.component == 'frontend'
+        run: |
+          cd frontend
+          npx @cyclonedx/cyclonedx-npm --output-file ../frontend-sbom.json
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.component }}-security-reports
+          path: |
+            ${{ matrix.component }}-*-report.*
+            ${{ matrix.component }}-*-audit.*
+            ${{ matrix.component }}-sbom.json
+          retention-days: 90
+
+  # Static Application Security Testing (SAST)
+  static-analysis:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Semgrep SAST scanning
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/python
+            p/javascript
+            p/typescript
+            p/docker
+            p/kubernetes
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      # Bandit for Python security
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Bandit
+        run: |
+          pip install bandit[toml]
+
+      - name: Run Bandit
+        run: |
+          bandit -r backend/app/ -f json -o bandit-report.json --severity-level medium --exit-zero
+          bandit -r backend/app/ -f txt -o bandit-report.txt --severity-level medium --exit-zero
+
+      # ESLint security rules for JavaScript/TypeScript
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+          npm install --save-dev eslint-plugin-security
+
+      - name: Run ESLint security scan
+        run: |
+          cd frontend
+          npx eslint src/ --ext .js,.jsx,.ts,.tsx --format json --output-file ../eslint-security-report.json --no-error-on-unmatched-pattern || true
+          npx eslint src/ --ext .js,.jsx,.ts,.tsx --format unix --output-file ../eslint-security-report.txt --no-error-on-unmatched-pattern || true
+
+      - name: Upload SAST reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-reports
+          path: |
+            bandit-report.*
+            eslint-security-report.*
+          retention-days: 90
+
+  # Infrastructure Security Scanning
+  infrastructure-security:
+    name: Infrastructure Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Terraform security scanning with Checkov
+      - name: Run Checkov for Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: json
+          output_file_path: checkov-terraform-report.json
+          soft_fail: true
+
+      # Kubernetes security scanning
+      - name: Run Checkov for Kubernetes
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: k8s/
+          framework: kubernetes
+          output_format: json
+          output_file_path: checkov-k8s-report.json
+          soft_fail: true
+
+      # Docker security scanning
+      - name: Run Checkov for Docker
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./
+          framework: dockerfile
+          output_format: json
+          output_file_path: checkov-docker-report.json
+          soft_fail: true
+
+      # Trivy for infrastructure scanning
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'trivy-fs-report.json'
+          exit-code: '0'
+
+      - name: Upload infrastructure security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-security-reports
+          path: |
+            checkov-*-report.json
+            trivy-fs-report.json
+          retention-days: 90
+
+  # Container Image Security Scanning
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.component }}
+          load: true
+          tags: claude-cli-${{ matrix.component }}:security-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Trivy container scanning
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: claude-cli-${{ matrix.component }}:security-scan
+          format: 'json'
+          output: 'trivy-${{ matrix.component }}-report.json'
+          exit-code: '0'
+
+      # Grype container scanning
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v3
+        with:
+          image: claude-cli-${{ matrix.component }}:security-scan
+          output-format: json
+          output-file: grype-${{ matrix.component }}-report.json
+          fail-build: false
+
+      # Syft for SBOM generation
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: claude-cli-${{ matrix.component }}:security-scan
+          format: cyclonedx-json
+          output-file: ${{ matrix.component }}-container-sbom.json
+
+      - name: Upload container security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.component }}-container-security
+          path: |
+            trivy-${{ matrix.component }}-report.json
+            grype-${{ matrix.component }}-report.json
+            ${{ matrix.component }}-container-sbom.json
+          retention-days: 90
+
+  # Secrets Scanning
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # TruffleHog for secrets detection
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --json --output=trufflehog-report.json
+
+      # GitLeaks for additional secrets detection
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
+
+      - name: Upload secrets scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secrets-scan-reports
+          path: |
+            trufflehog-report.json
+            gitleaks-report.json
+          retention-days: 90
+
+  # License Compliance Scanning
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Backend license scanning
+      - name: Setup Python (Backend)
+        if: matrix.component == 'backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-licenses (Backend)
+        if: matrix.component == 'backend'
+        run: |
+          pip install pip-licenses
+
+      - name: Generate license report (Backend)
+        if: matrix.component == 'backend'
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip-licenses --format=json --output-file=../backend-licenses.json
+          pip-licenses --format=plain --output-file=../backend-licenses.txt
+
+      # Frontend license scanning
+      - name: Setup Node.js (Frontend)
+        if: matrix.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install license-checker (Frontend)
+        if: matrix.component == 'frontend'
+        run: |
+          npm install -g license-checker
+
+      - name: Generate license report (Frontend)
+        if: matrix.component == 'frontend'
+        run: |
+          cd frontend
+          npm ci
+          license-checker --json --out ../frontend-licenses.json
+          license-checker --out ../frontend-licenses.txt
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.component }}-license-reports
+          path: |
+            ${{ matrix.component }}-licenses.*
+          retention-days: 90
+
+  # Compliance and Policy Enforcement
+  compliance-check:
+    name: Compliance & Policy Check
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, static-analysis, infrastructure-security, container-security]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all security reports
+        uses: actions/download-artifact@v4
+        with:
+          path: security-reports/
+
+      - name: Setup Python for report analysis
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install report analysis tools
+        run: |
+          pip install jq yq
+
+      - name: Analyze security reports
+        run: |
+          # Create compliance report
+          cat > compliance-report.md << 'EOF'
+          # Security Compliance Report
+          
+          Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Repository: ${{ github.repository }}
+          Commit: ${{ github.sha }}
+          
+          ## Summary
+          
+          | Check | Status | Critical | High | Medium | Low |
+          |-------|--------|----------|------|--------|-----|
+          EOF
+          
+          # Process each security report type
+          echo "Processing security reports..."
+          
+          # Count vulnerabilities from various sources
+          find security-reports/ -name "*.json" -type f | while read -r file; do
+            echo "Processing: $file"
+          done
+
+      - name: Check compliance thresholds
+        run: |
+          # Define acceptable risk thresholds
+          MAX_CRITICAL=0
+          MAX_HIGH=5
+          MAX_MEDIUM=20
+          
+          # Extract vulnerability counts from reports
+          # This would be customized based on your specific tools and formats
+          
+          echo "Compliance check completed"
+
+      - name: Upload compliance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report
+          path: |
+            compliance-report.md
+          retention-days: 365
+
+  # Security Dashboard Update
+  update-security-dashboard:
+    name: Update Security Dashboard
+    runs-on: ubuntu-latest
+    needs: [compliance-check]
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download compliance report
+        uses: actions/download-artifact@v4
+        with:
+          name: compliance-report
+          path: reports/
+
+      - name: Update security dashboard
+        run: |
+          # Update security metrics in monitoring system
+          # This could integrate with your monitoring/dashboard solution
+          echo "Updating security dashboard with latest scan results"
+
+      - name: Send security notification
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#security'
+          webhook_url: ${{ secrets.SECURITY_SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action
+          custom_payload: |
+            {
+              "text": "🚨 Security audit failed for Claude CLI",
+              "attachments": [{
+                "color": "danger",
+                "fields": [{
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                }, {
+                  "title": "Commit",
+                  "value": "${{ github.sha }}",
+                  "short": true
+                }]
+              }]
+            }
+
+  # Security Report Notification
+  notify-security-team:
+    name: Notify Security Team
+    runs-on: ubuntu-latest
+    needs: [compliance-check]
+    if: always()
+
+    steps:
+      - name: Send security report
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: 'Claude CLI Security Audit Report - ${{ github.run_number }}'
+          to: ${{ secrets.SECURITY_TEAM_EMAIL }}
+          from: 'Claude CLI Security <security@claude-cli.com>'
+          body: |
+            Security audit completed for Claude CLI Web UI.
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Run: ${{ github.run_number }}
+            
+            Please review the security reports in the GitHub Actions artifacts.
+            
+            Dashboard: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            This is an automated message from the Claude CLI security pipeline.

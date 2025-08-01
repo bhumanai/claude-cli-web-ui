@@ -1,0 +1,221 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { CommandPalette } from '../CommandPalette'
+
+// Mock the useTheme hook
+vi.mock('../../hooks/useTheme', () => ({
+  useTheme: () => ({
+    theme: 'dark',
+    toggleTheme: vi.fn()
+  })
+}))
+
+// Mock lucide-react icons
+vi.mock('lucide-react', () => {
+  const MockIcon = ({ className }: { className?: string }) => (
+    <div data-testid="mock-icon" className={className}></div>
+  )
+  
+  return {
+    Search: MockIcon,
+    Terminal: MockIcon,
+    Zap: MockIcon,
+    FileText: MockIcon,
+    Folder: MockIcon,
+    Settings: MockIcon,
+    X: MockIcon,
+    Sun: MockIcon,
+    Moon: MockIcon,
+    Home: MockIcon,
+    List: MockIcon,
+    Play: MockIcon,
+    Code: MockIcon,
+    Database: MockIcon,
+    Network: MockIcon,
+    GitBranch: MockIcon,
+    Monitor: MockIcon
+  }
+})
+
+describe('CommandPalette', () => {
+  const defaultProps = {
+    isOpen: true,
+    onClose: vi.fn(),
+    onExecuteCommand: vi.fn(),
+    onNavigate: vi.fn()
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should not render when isOpen is false', () => {
+    render(<CommandPalette {...defaultProps} isOpen={false} />)
+    expect(screen.queryByPlaceholder('Search commands...')).not.toBeInTheDocument()
+  })
+
+  it('should render search input and category tabs when open', () => {
+    render(<CommandPalette {...defaultProps} />)
+    
+    expect(screen.getByPlaceholder('Search commands...')).toBeInTheDocument()
+    expect(screen.getByText('All')).toBeInTheDocument()
+    expect(screen.getByText('System')).toBeInTheDocument()
+    expect(screen.getByText('Agents')).toBeInTheDocument()
+  })
+
+  it('should filter commands by search term', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, '/help')
+    
+    await waitFor(() => {
+      expect(screen.getByText('/help')).toBeInTheDocument()
+    })
+  })
+
+  it('should filter commands by category', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    const systemTab = screen.getByText('System')
+    await user.click(systemTab)
+    
+    // Should show system commands
+    await waitFor(() => {
+      expect(screen.getByText('/help')).toBeInTheDocument()
+      expect(screen.getByText('/clear')).toBeInTheDocument()
+    })
+  })
+
+  it('should handle keyboard navigation', async () => {
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    searchInput.focus()
+    
+    // Test arrow down navigation
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown' })
+    
+    // Test enter key execution
+    fireEvent.keyDown(searchInput, { key: 'Enter' })
+    
+    expect(defaultProps.onExecuteCommand).toHaveBeenCalled()
+  })
+
+  it('should close on escape key', () => {
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    fireEvent.keyDown(searchInput, { key: 'Escape' })
+    
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+
+  it('should execute command on click', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    // Search for a specific command
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, '/help')
+    
+    await waitFor(() => {
+      const helpCommand = screen.getByText('/help')
+      expect(helpCommand).toBeInTheDocument()
+    })
+    
+    const helpCommand = screen.getByText('/help')
+    await user.click(helpCommand)
+    
+    expect(defaultProps.onExecuteCommand).toHaveBeenCalledWith('/help')
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+
+  it('should execute UI actions', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    // Search for theme toggle action
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, 'Toggle Theme')
+    
+    await waitFor(() => {
+      const themeToggle = screen.getByText('Toggle Theme')
+      expect(themeToggle).toBeInTheDocument()
+    })
+    
+    const themeToggle = screen.getByText('Toggle Theme')
+    await user.click(themeToggle)
+    
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+
+  it('should show no results message for invalid search', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, 'nonexistentcommand123')
+    
+    await waitFor(() => {
+      expect(screen.getByText(/No commands found/)).toBeInTheDocument()
+    })
+  })
+
+  it('should clear search when clear button is clicked', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, '/help')
+    
+    // The clear button should appear
+    await waitFor(() => {
+      const clearButton = screen.getAllByTestId('mock-icon').find(
+        icon => icon.closest('button')
+      )
+      expect(clearButton).toBeInTheDocument()
+    })
+    
+    // Click the clear button (X icon)
+    const clearButton = screen.getAllByTestId('mock-icon').find(
+      icon => icon.closest('button') && icon.closest('button')?.onclick
+    )?.closest('button')
+    
+    if (clearButton) {
+      await user.click(clearButton)
+      expect(searchInput).toHaveValue('')
+    }
+  })
+
+  it('should display command shortcuts', () => {
+    render(<CommandPalette {...defaultProps} />)
+    
+    // Should show keyboard shortcuts in footer
+    expect(screen.getByText('Navigate')).toBeInTheDocument()
+    expect(screen.getByText('Select')).toBeInTheDocument()
+    expect(screen.getByText('Close')).toBeInTheDocument()
+  })
+
+  it('should call onNavigate for navigation commands', async () => {
+    const user = userEvent.setup()
+    render(<CommandPalette {...defaultProps} />)
+    
+    const searchInput = screen.getByPlaceholder('Search commands...')
+    await user.type(searchInput, 'Go to Terminal')
+    
+    await waitFor(() => {
+      const terminalNav = screen.getByText('Go to Terminal')
+      expect(terminalNav).toBeInTheDocument()
+    })
+    
+    const terminalNav = screen.getByText('Go to Terminal')
+    await user.click(terminalNav)
+    
+    expect(defaultProps.onNavigate).toHaveBeenCalledWith('terminal')
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+})

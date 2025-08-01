@@ -1,0 +1,295 @@
+# Prometheus alerting rules for Claude CLI Web UI
+# Comprehensive monitoring and alerting configuration
+
+groups:
+  # Application Health Alerts
+  - name: claude-cli-health
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"claude-backend|claude-frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: claude-cli
+        annotations:
+          summary: "Claude CLI service is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+          runbook_url: "https://docs.claude.yourdomain.com/runbooks/service-down"
+
+      - alert: HighErrorRate
+        expr: rate(claude_http_requests_total{status=~"5.."}[5m]) / rate(claude_http_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(claude_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s over the last 5 minutes"
+
+      - alert: HealthCheckFailing
+        expr: probe_success{job="blackbox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: claude-cli
+        annotations:
+          summary: "Health check failing"
+          description: "Health check for {{ $labels.instance }} has been failing for 2 minutes"
+
+  # Resource Usage Alerts
+  - name: claude-cli-resources
+    rules:
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name=~"claude-.*"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "High CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value }}% for more than 10 minutes"
+
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{name=~"claude-.*"} / container_spec_memory_limit_bytes{name=~"claude-.*"}) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: claude-cli
+        annotations:
+          summary: "High memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ $value }}% of limit"
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value }}% available on {{ $labels.instance }}"
+
+      - alert: HighDiskIOUtilization
+        expr: rate(node_disk_io_time_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High disk I/O utilization"
+          description: "Disk I/O utilization is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+  # Database Alerts
+  - name: claude-cli-database
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High number of PostgreSQL connections"
+          description: "PostgreSQL connections are at {{ $value }}% of maximum"
+
+      - alert: PostgreSQLSlowQueries
+        expr: pg_stat_activity_max_tx_duration > 300
+        for: 2m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "Longest running query is {{ $value }}s"
+
+      - alert: PostgreSQLReplicationLag
+        expr: pg_replication_lag > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL replication lag"
+          description: "Replication lag is {{ $value }}s"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value }}% of maximum"
+
+  # Security Alerts
+  - name: claude-cli-security
+    rules:
+      - alert: TooManyFailedLogins
+        expr: increase(claude_failed_login_attempts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Too many failed login attempts"
+          description: "{{ $value }} failed login attempts in the last 5 minutes"
+
+      - alert: UnauthorizedAccessAttempt
+        expr: increase(claude_unauthorized_access_attempts_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Unauthorized access attempts detected"
+          description: "{{ $value }} unauthorized access attempts in the last 5 minutes"
+
+      - alert: SSLCertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 7
+        for: 1h
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+      - alert: SSLCertificateExpired
+        expr: probe_ssl_earliest_cert_expiry - time() <= 0
+        for: 1m
+        labels:
+          severity: critical
+          service: security
+        annotations:
+          summary: "SSL certificate expired"
+          description: "SSL certificate for {{ $labels.instance }} has expired"
+
+  # Business Logic Alerts
+  - name: claude-cli-business
+    rules:
+      - alert: HighTaskFailureRate
+        expr: rate(claude_tasks_failed_total[5m]) / rate(claude_tasks_total[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "High task failure rate"
+          description: "Task failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      - alert: LongRunningTasks
+        expr: claude_task_duration_seconds > 1800
+        for: 1m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "Long running task detected"
+          description: "Task {{ $labels.task_id }} has been running for {{ $value }}s"
+
+      - alert: QueueBacklog
+        expr: claude_task_queue_size > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: claude-cli
+        annotations:
+          summary: "Large task queue backlog"
+          description: "Task queue has {{ $value }} pending tasks"
+
+      - alert: NoActiveUsers
+        expr: claude_active_sessions == 0
+        for: 30m
+        labels:
+          severity: info
+          service: claude-cli
+        annotations:
+          summary: "No active user sessions"
+          description: "No active user sessions for 30 minutes"
+
+  # Network and Infrastructure Alerts
+  - name: claude-cli-network
+    rules:
+      - alert: HighNetworkLatency
+        expr: probe_duration_seconds{job="blackbox"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: network
+        annotations:
+          summary: "High network latency"
+          description: "Network latency to {{ $labels.instance }} is {{ $value }}s"
+
+      - alert: LoadBalancerDown
+        expr: up{job="nginx-frontend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Load balancer is down"
+          description: "Nginx load balancer has been down for more than 2 minutes"
+
+      - alert: BackupFailed
+        expr: increase(claude_backup_failures_total[1d]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Backup failed"
+          description: "Backup has failed {{ $value }} times in the last day"
+
+  # Rate Limiting Alerts
+  - name: claude-cli-rate-limiting
+    rules:
+      - alert: HighRateLimitHits
+        expr: rate(nginx_ingress_controller_requests{status="429"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: rate-limiting
+        annotations:
+          summary: "High rate limit hits"
+          description: "Rate limit is being hit {{ $value }} times per second"
+
+      - alert: SuspiciousTraffic
+        expr: rate(claude_http_requests_total[5m]) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Suspicious traffic detected"
+          description: "Request rate is {{ $value }} requests per second, which may indicate an attack"

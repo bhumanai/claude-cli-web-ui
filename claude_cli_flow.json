@@ -1,0 +1,138 @@
+{
+  "flows": {
+    "claude_cli_flow": {
+      "description": "Claude CLI Web UI comprehensive testing flow",
+      "entry_points": [
+        "https://claudeui-rouge.vercel.app/",
+        "https://claude-cli-p2dfuf6gl-bhumanais-projects.vercel.app/"
+      ],
+      "expected_checkpoints": [
+        {
+          "step_index": 1,
+          "type": "dom_element",
+          "selector": ".terminal-container, .terminal",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 2,
+          "type": "dom_element", 
+          "selector": "input[type=text], .command-input",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 3,
+          "type": "text_content",
+          "selector": ".connection-status, .status-indicator",
+          "expected_value": "connected|disconnected|connecting"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "terminal_visible",
+          "type": "element_exists",
+          "selector": ".terminal-container, .terminal, .console",
+          "expected": true,
+          "description": "Terminal container should be visible"
+        },
+        {
+          "id": "input_field_available",
+          "type": "element_exists",
+          "selector": "input[type=text], .command-input, textarea",
+          "expected": true,
+          "description": "Command input field should be available"
+        },
+        {
+          "id": "connection_indicator",
+          "type": "element_exists",
+          "selector": ".connection-status, .status, .websocket-status",
+          "expected": true,
+          "description": "Connection status indicator should be present"
+        },
+        {
+          "id": "no_major_errors",
+          "type": "element_count",
+          "selector": ".error-message:not(.hidden), .alert-error",
+          "expected": 0,
+          "description": "No visible error messages on page load"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "basic_ui_load",
+          "steps": [
+            {
+              "action": "navigate",
+              "target": "entry_url",
+              "value": null,
+              "expected_outcome": "Page loads with terminal interface"
+            },
+            {
+              "action": "wait",
+              "target": null,
+              "value": "2000",
+              "expected_outcome": "Allow time for WebSocket connection attempts"
+            },
+            {
+              "action": "screenshot",
+              "target": null,
+              "value": "initial_load",
+              "expected_outcome": "Capture initial state"
+            }
+          ]
+        },
+        {
+          "name": "command_interaction",
+          "steps": [
+            {
+              "action": "click",
+              "target": "input[type=text], .command-input",
+              "value": null,
+              "expected_outcome": "Input field receives focus"
+            },
+            {
+              "action": "fill",
+              "target": "input[type=text], .command-input",
+              "value": "help",
+              "expected_outcome": "Command typed in input field"
+            },
+            {
+              "action": "press_key",
+              "target": null,
+              "value": "Enter",
+              "expected_outcome": "Command submitted"
+            },
+            {
+              "action": "wait",
+              "target": null,
+              "value": "1000",
+              "expected_outcome": "Allow time for response"
+            },
+            {
+              "action": "screenshot",
+              "target": null,
+              "value": "after_command",
+              "expected_outcome": "Capture command response"
+            }
+          ]
+        },
+        {
+          "name": "ui_exploration",
+          "steps": [
+            {
+              "action": "screenshot",
+              "target": null,
+              "value": "full_ui",
+              "expected_outcome": "Capture entire interface"
+            },
+            {
+              "action": "scroll",
+              "target": ".terminal-container, body",
+              "value": "bottom",
+              "expected_outcome": "Check scrolling behavior"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

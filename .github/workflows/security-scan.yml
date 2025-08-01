@@ -1,0 +1,432 @@
+name: Security Scanning & Compliance
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - dependencies
+        - code
+        - secrets
+        - infrastructure
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'dependencies'
+    
+    strategy:
+      matrix:
+        component: [frontend, backend-vercel]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.component }}/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd ${{ matrix.component }}
+        npm ci --audit
+    
+    - name: Run npm audit
+      run: |
+        cd ${{ matrix.component }}
+        npm audit --audit-level=moderate --json > npm-audit-${{ matrix.component }}.json || true
+    
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --file=${{ matrix.component }}/package.json --json > snyk-${{ matrix.component }}.json || true
+        command: test
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-scan-${{ matrix.component }}
+        path: |
+          npm-audit-${{ matrix.component }}.json
+          snyk-${{ matrix.component }}.json
+        retention-days: 30
+
+  # Code security scanning
+  code-security-scan:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'code'
+    
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript,typescript
+        config-file: ./.github/codeql-config.yml
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:javascript"
+    
+    - name: Run Semgrep security scan
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/owasp-top-ten
+          p/javascript
+          p/typescript
+        publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+        publishDeployment: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    
+    - name: Run ESLint security plugin
+      run: |
+        cd frontend
+        npm ci
+        npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-security-report.json || true
+        
+        cd ../backend-vercel
+        npm ci
+        npx eslint . --ext .js,.ts --format json --output-file eslint-security-report.json || true
+    
+    - name: Upload code security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-security-scan
+        path: |
+          frontend/eslint-security-report.json
+          backend-vercel/eslint-security-report.json
+        retention-days: 30
+
+  # Secret scanning
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'secrets'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Run TruffleHog secret scanner
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+    
+    - name: Run GitLeaks secret scanner
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+    
+    - name: Run detect-secrets
+      run: |
+        pip install detect-secrets
+        detect-secrets scan --all-files --force-use-all-plugins --baseline .secrets.baseline || true
+        detect-secrets audit .secrets.baseline || true
+
+  # Infrastructure security scanning
+  infrastructure-scan:
+    name: Infrastructure Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == 'infrastructure'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run Checkov IaC scanner
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .
+        framework: terraform,kubernetes,dockerfile,secrets
+        output_format: sarif
+        output_file_path: checkov-report.sarif
+        api-key: ${{ secrets.CHECKOV_API_KEY }}
+    
+    - name: Upload Checkov results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-report.sarif
+    
+    - name: Run tfsec Terraform scanner
+      uses: aquasecurity/tfsec-sarif-action@v0.1.4
+      with:
+        sarif_file: tfsec-results.sarif
+    
+    - name: Upload tfsec results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: tfsec-results.sarif
+    
+    - name: Scan Docker configurations
+      run: |
+        docker run --rm -v "$(pwd)":/workspace \
+          hadolint/hadolint:latest \
+          hadolint /workspace/frontend/Dockerfile \
+          /workspace/backend/Dockerfile || true
+
+  # OWASP ZAP security testing
+  owasp-zap-scan:
+    name: OWASP ZAP Security Testing
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full'
+    needs: [dependency-scan]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup test environment
+      run: |
+        # This would typically start a test deployment
+        echo "Setting up test environment for security scanning..."
+        echo "TEST_URL=https://claude-cli-staging.vercel.app" >> $GITHUB_ENV
+    
+    - name: Run OWASP ZAP baseline scan
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: ${{ env.TEST_URL }}
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+    
+    - name: Run OWASP ZAP full scan
+      uses: zaproxy/action-full-scan@v0.8.0
+      if: github.event_name == 'schedule' || github.event.inputs.scan_type == 'full'
+      with:
+        target: ${{ env.TEST_URL }}
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+
+  # License compliance scanning
+  license-scan:
+    name: License Compliance Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'full'
+    
+    strategy:
+      matrix:
+        component: [frontend, backend-vercel]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.component }}/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd ${{ matrix.component }}
+        npm ci
+    
+    - name: Run license checker
+      run: |
+        cd ${{ matrix.component }}
+        npx license-checker --json --out license-report-${{ matrix.component }}.json
+        npx license-checker --summary
+    
+    - name: Check for prohibited licenses
+      run: |
+        cd ${{ matrix.component }}
+        # Check for GPL, AGPL, and other copy-left licenses
+        if npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' --failOn 'GPL;AGPL;LGPL'; then
+          echo "✅ All licenses are compliant"
+        else
+          echo "❌ Non-compliant licenses found"
+          exit 1
+        fi
+    
+    - name: Upload license reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: license-scan-${{ matrix.component }}
+        path: ${{ matrix.component }}/license-report-${{ matrix.component }}.json
+        retention-days: 30
+
+  # Security report aggregation
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security-scan, secret-scan, infrastructure-scan, license-scan]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all security reports
+      uses: actions/download-artifact@v4
+      with:
+        path: security-reports
+    
+    - name: Generate security summary
+      run: |
+        cat > security-summary.md << 'EOF'
+        # Security Scan Summary
+        
+        **Scan Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        **Repository:** ${{ github.repository }}
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        
+        ## Scan Results
+        
+        ### Dependency Vulnerabilities
+        - **Frontend**: $(if [ -f "security-reports/dependency-scan-frontend/npm-audit-frontend.json" ]; then echo "✅ Completed"; else echo "❌ Failed"; fi)
+        - **Backend**: $(if [ -f "security-reports/dependency-scan-backend-vercel/npm-audit-backend-vercel.json" ]; then echo "✅ Completed"; else echo "❌ Failed"; fi)
+        
+        ### Code Security Analysis
+        - **CodeQL**: $(if [ "${{ needs.code-security-scan.result }}" == "success" ]; then echo "✅ Passed"; else echo "❌ Failed"; fi)
+        - **Semgrep**: $(if [ "${{ needs.code-security-scan.result }}" == "success" ]; then echo "✅ Passed"; else echo "❌ Failed"; fi)
+        
+        ### Secret Detection
+        - **TruffleHog**: $(if [ "${{ needs.secret-scan.result }}" == "success" ]; then echo "✅ No secrets found"; else echo "❌ Issues detected"; fi)
+        - **GitLeaks**: $(if [ "${{ needs.secret-scan.result }}" == "success" ]; then echo "✅ No leaks found"; else echo "❌ Issues detected"; fi)
+        
+        ### Infrastructure Security
+        - **Checkov**: $(if [ "${{ needs.infrastructure-scan.result }}" == "success" ]; then echo "✅ Passed"; else echo "❌ Failed"; fi)
+        - **tfsec**: $(if [ "${{ needs.infrastructure-scan.result }}" == "success" ]; then echo "✅ Passed"; else echo "❌ Failed"; fi)
+        
+        ### License Compliance
+        - **Frontend**: $(if [ "${{ needs.license-scan.result }}" == "success" ]; then echo "✅ Compliant"; else echo "❌ Non-compliant"; fi)
+        - **Backend**: $(if [ "${{ needs.license-scan.result }}" == "success" ]; then echo "✅ Compliant"; else echo "❌ Non-compliant"; fi)
+        
+        ## Recommendations
+        
+        1. Review and address any high-severity vulnerabilities
+        2. Update dependencies with known security issues
+        3. Implement security headers and CSP policies
+        4. Regular security training for development team
+        5. Automated security testing in CI/CD pipeline
+        
+        ## Next Steps
+        
+        - [ ] Review detailed reports in GitHub Security tab
+        - [ ] Update vulnerable dependencies
+        - [ ] Fix any code security issues
+        - [ ] Validate infrastructure configurations
+        - [ ] Schedule next security review
+        
+        ---
+        *Generated by GitHub Actions Security Workflow*
+        EOF
+        
+        # Add timestamp
+        sed -i "s/\$(date -u +\"%Y-%m-%d %H:%M:%S UTC\")/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" security-summary.md
+    
+    - name: Upload security summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-summary
+        path: security-summary.md
+        retention-days: 90
+    
+    - name: Create security issue (if failures)
+      if: |
+        needs.dependency-scan.result == 'failure' ||
+        needs.code-security-scan.result == 'failure' ||
+        needs.secret-scan.result == 'failure' ||
+        needs.infrastructure-scan.result == 'failure' ||
+        needs.license-scan.result == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 Security Scan Issues Detected - ${new Date().toISOString().split('T')[0]}`,
+            body: `${summary}\n\n**Action Required**: Please review and address the security issues identified in this scan.`,
+            labels: ['security', 'high-priority', 'automated']
+          });
+
+  # Notification
+  notify-security-results:
+    name: Notify Security Results
+    runs-on: ubuntu-latest
+    needs: [security-report]
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    
+    steps:
+    - name: Send Slack notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#security'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        custom_payload: |
+          {
+            "text": "Security Scan Results",
+            "attachments": [{
+              "color": "${{ needs.security-report.result == 'success' && 'good' || 'danger' }}",
+              "fields": [
+                {
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                },
+                {
+                  "title": "Scan Status",
+                  "value": "${{ needs.security-report.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Report",
+                  "value": "Check GitHub Actions for detailed results",
+                  "short": false
+                }
+              ]
+            }]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

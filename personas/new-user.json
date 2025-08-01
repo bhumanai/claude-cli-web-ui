@@ -1,0 +1,17 @@
+{
+  "id": "new-user",
+  "name": "New User",
+  "description": "First-time user exploring Claude CLI Web UI",
+  "characteristics": [
+    "Never used Claude CLI before",
+    "Expects intuitive interface",
+    "Notices connection issues immediately",
+    "Frustrated by repeated error messages"
+  ],
+  "expectations": {
+    "connection": "Should connect immediately without errors",
+    "errors": "Clear, non-intrusive error messages",
+    "recovery": "Automatic recovery from connection issues",
+    "feedback": "Visual confirmation of actions"
+  }
+}

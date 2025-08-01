@@ -1,0 +1,337 @@
+import { useMemo, useState, useEffect, useCallback } from 'react'
+import { Header } from './components/Header'
+import { Terminal } from './components/Terminal'
+import { TaskManagementPanel } from './components/TaskManagementPanel'
+import { CommandPalette } from './components/CommandPalette'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { ErrorNotification } from './components/ErrorNotification'
+import { ConnectionStatus } from './components/ConnectionStatus'
+import { NotificationProvider, useNotifications } from './contexts/NotificationContext'
+import { PageLoading } from './components/LoadingIndicator'
+import { useTheme } from './hooks/useTheme'
+import { useWebSocket } from './hooks/useWebSocket'
+import { useSessionPersistence, useUIStateRestoration } from './hooks/useSessionPersistence'
+import { useApiRetry } from './hooks/useRetry'
+import { generateSessionId } from './utils/helpers'
+import { errorReporting } from './services/ErrorReportingService'
+
+function AppContent() {
+  // Restore UI state from localStorage
+  const restoredState = useUIStateRestoration()
+  
+  const { theme, toggleTheme } = useTheme()
+  const [activeView, setActiveView] = useState<'terminal' | 'tasks'>(
+    restoredState.activeView || 'terminal'
+  )
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  
+  // Notification system from context
+  const {
+    notifications,
+    dismissNotification,
+    notifyError,
+    notifySuccess,
+    notifyConnectionError,
+    notifyConnectionRestored,
+    notifyApiError
+  } = useNotifications()
+  
+  // Generate session ID once on app mount
+  const sessionId = useMemo(() => {
+    const id = generateSessionId()
+    // Set session ID for error reporting
+    errorReporting.setSession(id)
+    errorReporting.addTag('claude-cli-web-ui')
+    return id
+  }, [])
+  
+  // Session persistence
+  const {
+    saveCommandHistory,
+    loadCommandHistory,
+    saveActiveView,
+    saveTheme,
+    isRestoring
+  } = useSessionPersistence(sessionId)
+  
+  const {
+    isConnected,
+    commandHistory,
+    sendCommand,
+    clearHistory,
+    connectionError,
+    lastConnectionAttempt,
+    forceReconnect
+  } = useWebSocket(sessionId, restoredState.commandHistory)
+
+  // Retry mechanism for API calls
+  const { executeWithRetry, isRetrying } = useApiRetry({
+    maxAttempts: 3,
+    onRetry: (attempt, error) => {
+      errorReporting.addBreadcrumb({
+        level: 'warning',
+        message: `API retry attempt ${attempt}`,
+        category: 'http',
+        data: { error: error.message }
+      })
+    },
+    onMaxAttemptsReached: (error) => {
+      notifyApiError('API', error)
+    }
+  })
+
+  // Handle connection errors
+  useEffect(() => {
+    if (connectionError && !isConnected) {
+      notifyConnectionError(forceReconnect)
+    } else if (isConnected && lastConnectionAttempt) {
+      // Connection restored
+      notifyConnectionRestored()
+    }
+  }, [connectionError, isConnected, lastConnectionAttempt, notifyConnectionError, notifyConnectionRestored, forceReconnect])
+
+  // Enhanced command execution with error handling and retry
+  const handleCommandExecution = useCallback(async (command: string) => {
+    try {
+      await executeWithRetry(async () => {
+        await sendCommand(command)
+      })
+      // Success is handled by the command history updates
+    } catch (error) {
+      const errorInstance = error instanceof Error ? error : new Error('Unknown error')
+      
+      // Report error for debugging
+      errorReporting.captureError(errorInstance, {
+        component: 'CommandExecution',
+        action: 'execute_command',
+        metadata: { command }
+      })
+      
+      notifyError(
+        'Command Execution Failed',
+        'Failed to execute the command after multiple attempts.',
+        errorInstance.message,
+        {
+          label: 'Retry',
+          onClick: () => handleCommandExecution(command)
+        }
+      )
+    }
+  }, [sendCommand, notifyError, executeWithRetry])
+
+  // Auto-save command history
+  useEffect(() => {
+    if (commandHistory.length > 0) {
+      saveCommandHistory(commandHistory)
+    }
+  }, [commandHistory, saveCommandHistory])
+
+  // Auto-save active view
+  const handleViewChange = useCallback((view: 'terminal' | 'tasks') => {
+    setActiveView(view)
+    saveActiveView(view)
+  }, [saveActiveView])
+
+  // Auto-save theme changes
+  useEffect(() => {
+    saveTheme(theme)
+  }, [theme, saveTheme])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K to open command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsCommandPaletteOpen(true)
+      }
+      
+      // Cmd+P or Ctrl+P for projects (also opens palette)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault()
+        setIsCommandPaletteOpen(true)
+      }
+      
+      // Cmd+Shift+L or Ctrl+Shift+L to toggle theme
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'L') {
+        e.preventDefault()
+        toggleTheme()
+      }
+      
+      // Cmd+1 or Ctrl+1 to switch to terminal
+      if ((e.metaKey || e.ctrlKey) && e.key === '1') {
+        e.preventDefault()
+        handleViewChange('terminal')
+      }
+      
+      // Cmd+2 or Ctrl+2 to switch to tasks
+      if ((e.metaKey || e.ctrlKey) && e.key === '2') {
+        e.preventDefault()
+        handleViewChange('tasks')
+      }
+      
+      // Escape to close palette
+      if (e.key === 'Escape' && isCommandPaletteOpen) {
+        setIsCommandPaletteOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isCommandPaletteOpen, toggleTheme, handleViewChange])
+
+  // Show loading screen while restoring session
+  if (isRestoring) {
+    return (
+      <PageLoading 
+        message="Restoring Session" 
+        progress={undefined}
+      />
+    )
+  }
+
+  return (
+    <ErrorBoundary 
+      level="page" 
+      enableReporting={true}
+      onError={(error, errorInfo) => {
+        errorReporting.captureError(error, {
+          component: 'App',
+          action: 'render_error',
+          metadata: { errorInfo }
+        })
+      }}
+    >
+      <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <Header
+          theme={theme}
+          onThemeToggle={toggleTheme}
+          isConnected={isConnected}
+          sessionId={sessionId}
+          activeView={activeView}
+        />
+        
+        <main className="flex-1 px-2 sm:px-4 py-4 overflow-hidden">
+          {/* View Toggle */}
+          <div className="mb-4 flex gap-2 px-2">
+            <button
+              onClick={() => handleViewChange('terminal')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeView === 'terminal'
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              Terminal
+            </button>
+            <button
+              onClick={() => handleViewChange('tasks')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeView === 'tasks'
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              Tasks
+            </button>
+          </div>
+
+          {/* Content Area */}
+          <div className="h-[calc(100%-3.5rem)]">
+            {activeView === 'terminal' ? (
+              <ErrorBoundary 
+                level="section" 
+                enableReporting={true}
+                onError={(error) => {
+                  errorReporting.captureError(error, {
+                    component: 'Terminal',
+                    action: 'terminal_error'
+                  })
+                }}
+              >
+                <Terminal
+                  commandHistory={commandHistory}
+                  onExecuteCommand={handleCommandExecution}
+                  onClearHistory={clearHistory}
+                  isConnected={isConnected}
+                  className="h-full"
+                />
+              </ErrorBoundary>
+            ) : (
+              <ErrorBoundary 
+                level="section" 
+                enableReporting={true}
+                onError={(error) => {
+                  errorReporting.captureError(error, {
+                    component: 'TaskManagementPanel',
+                    action: 'task_panel_error'
+                  })
+                }}
+              >
+                <TaskManagementPanel />
+              </ErrorBoundary>
+            )}
+          </div>
+        </main>
+
+        {/* Command Palette */}
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onExecuteCommand={(command) => {
+            handleCommandExecution(command)
+            handleViewChange('terminal') // Switch to terminal view when executing command
+          }}
+          onNavigate={(view) => handleViewChange(view as any)}
+        />
+
+        {/* Connection Status Indicator */}
+        <ConnectionStatus
+          isConnected={isConnected}
+          connectionError={connectionError}
+          lastConnectionAttempt={lastConnectionAttempt}
+          onRetry={forceReconnect}
+          showDetails={true}
+          position="top-right"
+        />
+
+        {/* Connection overlay for disconnected state */}
+        {!isConnected && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center max-w-md mx-4">
+              <div className="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Connecting to Claude CLI
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Establishing WebSocket connection...
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                Session: {sessionId.slice(-8)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Error Notifications */}
+        <ErrorNotification
+          notifications={notifications}
+          onDismiss={dismissNotification}
+          position="top-right"
+          maxVisible={5}
+        />
+      </div>
+    </ErrorBoundary>
+  )
+}
+
+// Main App component with providers
+function App() {
+  return (
+    <NotificationProvider maxNotifications={5} position="top-right">
+      <AppContent />
+    </NotificationProvider>
+  )
+}
+
+export default App

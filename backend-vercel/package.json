@@ -1,0 +1,44 @@
+{
+  "name": "claude-cli-backend-vercel",
+  "version": "1.0.0",
+  "description": "Vercel serverless backend for Claude CLI Web UI",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node -e \"console.log('Starting Vercel Dev Server...')\" && vercel dev",
+    "build": "echo 'Skipping build for serverless functions'",
+    "deploy": "vercel --prod",
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "claude",
+    "cli",
+    "vercel",
+    "serverless",
+    "typescript"
+  ],
+  "author": "Claude CLI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^20.0.2",
+    "@upstash/redis": "^1.28.4",
+    "@vercel/node": "^3.0.21",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/jest": "^29.5.8",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.9.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

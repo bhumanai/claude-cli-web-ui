@@ -1,0 +1,86 @@
+# Grafana datasource configuration for Prometheus
+apiVersion: 1
+
+datasources:
+  - name: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      # HTTP settings
+      httpMethod: POST
+      timeInterval: 30s
+      queryTimeout: 60s
+      
+      # Custom query parameters
+      customQueryParameters: ''
+      
+      # Alerting
+      manageAlerts: true
+      
+      # Prometheus specific settings
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      
+      # Cache settings
+      cacheLevel: High
+      
+      # Query editor settings
+      disableMetricsLookup: false
+      
+      # Exemplars
+      exemplarTraceIdDestinations:
+        - name: trace
+          datasourceUid: jaeger
+          
+    secureJsonData: {}
+    
+  # Optional: Additional Prometheus instances
+  - name: prometheus-longterm
+    type: prometheus
+    access: proxy
+    url: http://prometheus-longterm:9090
+    isDefault: false
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 5m
+      queryTimeout: 300s
+      manageAlerts: false
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      
+  # Optional: Jaeger for distributed tracing
+  - name: jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    isDefault: false
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        tags:
+          - key: service.name
+            value: service
+      nodeGraph:
+        enabled: true
+        
+  # Optional: Loki for log aggregation
+  - name: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: jaeger
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+      maxLines: 1000

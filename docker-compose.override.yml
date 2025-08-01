@@ -1,0 +1,54 @@
+# Docker Compose override for development
+# This file is automatically loaded alongside docker-compose.yml in development
+
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      DEBUG: true
+      LOG_LEVEL: DEBUG
+      DATABASE_ECHO: true
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173"
+    volumes:
+      # Mount source code for development
+      - ./backend/app:/app/app:ro
+      - ./backend/main.py:/app/main.py:ro
+    ports:
+      # Expose backend port for direct access
+      - "8000:8000"
+
+  frontend:
+    # Use development build target
+    build:
+      target: builder
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    volumes:
+      # Mount source code for hot reload
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+
+  postgres:
+    ports:
+      # Expose database port for debugging
+      - "5432:5432"
+    environment:
+      # Less restrictive settings for development
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  redis:
+    ports:
+      # Expose Redis port for debugging
+      - "6379:6379"
+
+  # Disable SSL proxy in development
+  nginx-proxy:
+    profiles:
+      - production-only
+
+  certbot:
+    profiles:
+      - production-only

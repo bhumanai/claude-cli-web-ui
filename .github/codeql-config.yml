@@ -1,0 +1,70 @@
+# CodeQL configuration for Claude CLI Web UI
+# Customizes the CodeQL analysis for better security coverage
+
+name: "Claude CLI Security Analysis"
+
+disable-default-queries: false
+
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+
+paths-ignore:
+  - node_modules/
+  - dist/
+  - build/
+  - coverage/
+  - "**/*.test.js"
+  - "**/*.test.ts"
+  - "**/*.spec.js"
+  - "**/*.spec.ts"
+  - "**/*.d.ts"
+  - "**/.next/"
+  - "**/out/"
+
+paths:
+  - frontend/src/
+  - backend-vercel/api/
+  - backend-vercel/src/
+  - "!**/node_modules/"
+
+query-filters:
+  # Reduce noise from test files
+  - exclude:
+      id: js/useless-assignment-to-local
+      where: path =~ ".*test.*" or path =~ ".*spec.*"
+  
+  # Focus on security-relevant issues
+  - include:
+      tags:
+        - security
+        - external/cwe/cwe-79  # XSS
+        - external/cwe/cwe-89  # SQL Injection  
+        - external/cwe/cwe-78  # Command Injection
+        - external/cwe/cwe-22  # Path Traversal
+        - external/cwe/cwe-94  # Code Injection
+        - external/cwe/cwe-77  # Command Neutralization
+
+# Custom security rules for the application
+packs:
+  - codeql/javascript-queries:Security
+  - codeql/javascript-queries:Experimental
+  
+# Configuration for specific languages
+javascript:
+  index:
+    # Include TypeScript files
+    include: "**/*.ts"
+    include: "**/*.tsx"
+    include: "**/*.js"
+    include: "**/*.jsx"
+    
+    # Exclude build artifacts and dependencies
+    exclude:
+      - "**/node_modules/**"
+      - "**/dist/**"  
+      - "**/build/**"
+      - "**/.next/**"
+      - "**/coverage/**"

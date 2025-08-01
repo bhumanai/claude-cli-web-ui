@@ -1,0 +1,97 @@
+{
+  "chain_id": "20250729_230623",
+  "chain_name": "smart-task",
+  "start_time": "2025-07-29T23:06:23.036748",
+  "tasks": [
+    {
+      "description": "Find existing task or create new one",
+      "prompt": "USER REQUEST: Create a user authentication system\n\nSearch for existing tasks that match this request:\n1. Check the tasks/ directory for any task folders that match the description\n2. Look for similar or related tasks already created\n3. If found: Return the task ID and current status, and clearly state \"FOUND EXISTING TASK: [task-id]\"\n4. If NOT found: Create a new task with proper folder structure and clearly state \"CREATED NEW TASK: [task-id]\"\n\nFor new tasks, create:\n- Unique task ID (task-YYYYMMDD-HHMMSS format)\n- Task folder with subfolders (notes/, code/, docs/, tests/)\n- task.md file with proper structure\n- Mark as \"active\" since we're about to work on it\n\nAlways clearly state whether this is continuing existing work or starting fresh so the user knows what happened.",
+      "subagent_type": "taskdoc-handler"
+    },
+    {
+      "description": "Analyze task requirements and research codebase",
+      "prompt": "USER REQUEST: Create a user authentication system\n\nTASK CONTEXT:\n[Task lookup results from Phase 0 will be inserted here]\n\nBased on the task context above, analyze this request:\n1. If continuing existing task: Review current progress and next steps\n2. If new task: Break down what needs to be accomplished\n3. Research the existing codebase structure\n4. Identify relevant files and dependencies\n5. List potential challenges or considerations\n6. Suggest the optimal approach\n\nFormat your response with clear sections that can be used as context for planning.\nDON'T re-analyze work already done if this is a continuing task.",
+      "subagent_type": "problem-setup"
+    },
+    {
+      "description": "Plan implementation chain based on analysis",
+      "prompt": "USER REQUEST: Create a user authentication system\n\nTASK CONTEXT:\n[Task lookup results from Phase 0]\n\nPREVIOUS ANALYSIS:\n[The problem-setup agent's complete analysis will be inserted here]\n\nBased on this context and analysis, create a detailed implementation plan:\n1. If continuing task: Plan next steps based on current progress\n2. If new task: Create full implementation plan\n3. Specific agents needed and their roles\n4. Order of execution with dependencies\n5. Key deliverables from each agent\n6. Checkpoint locations for user approval\n\nDesign the chain to be efficient, avoiding any duplicate work already completed.",
+      "subagent_type": "chain-planner"
+    },
+    {
+      "description": "Select required agents",
+      "prompt": "Based on the approved plan:\n[APPROVED PLAN WILL BE INSERTED HERE]\n\nSelect the appropriate agents from /Users/don/.claude/agents/ for:\n[LIST OF REQUIRED AGENTS FROM PLAN]\n\nMap each task to the best available agent.",
+      "subagent_type": "agent-factory"
+    },
+    {
+      "description": "Execute agent chain",
+      "prompt": "Execute the approved chain with these agents:\n[AGENT LIST]\n\nPrevious context:\n- Problem Analysis: [FROM PHASE 1]\n- Implementation Plan: [FROM PHASE 2]\n- Selected Agents: [FROM PHASE 3]\n\nRun sequentially with checkpoints between each agent. Pass each agent's output as context to the next agent to avoid duplicate work.",
+      "subagent_type": "chain-executor"
+    },
+    {
+      "description": "Update task completion",
+      "prompt": "COMPLETED WORK: Create a user authentication system\n\nTASK CONTEXT:\n[Original task lookup/creation results]\n\nEXECUTION RESULTS:\n[Results from all previous phases]\n\nUpdate the task documentation:\n1. Log progress made in this session\n2. Update task status (completed, in-progress, or paused)\n3. Document what was accomplished\n4. Note any remaining work or next steps\n5. Update CLAUDE.md task tracking\n\nEnsure the task folder reflects the current state of work.",
+      "subagent_type": "taskdoc-handler"
+    }
+  ],
+  "initial_context": {
+    "USER_REQUEST": "Create a user authentication system",
+    "COMMAND": "smart-task",
+    "PHASE_0_RESULT": "[taskdoc-handler] Task completed: Find existing task or create new one",
+    "PHASE_1_RESULT": "[problem-setup] Task completed: Analyze task requirements and research codebase",
+    "PHASE_2_RESULT": "[chain-planner] Task completed: Plan implementation chain based on analysis",
+    "PHASE_3_RESULT": "[agent-factory] Task completed: Select required agents",
+    "PHASE_4_RESULT": "[chain-executor] Task completed: Execute agent chain",
+    "PHASE_5_RESULT": "[taskdoc-handler] Task completed: Update task completion"
+  },
+  "end_time": "2025-07-29T23:06:23.038689",
+  "results": [
+    {
+      "agent_type": "taskdoc-handler",
+      "status": "completed",
+      "output": "[taskdoc-handler] Task completed: Find existing task or create new one",
+      "execution_id": "20250729_230623"
+    },
+    {
+      "agent_type": "problem-setup",
+      "status": "completed",
+      "output": "[problem-setup] Task completed: Analyze task requirements and research codebase",
+      "execution_id": "20250729_230623"
+    },
+    {
+      "agent_type": "chain-planner",
+      "status": "completed",
+      "output": "[chain-planner] Task completed: Plan implementation chain based on analysis",
+      "execution_id": "20250729_230623"
+    },
+    {
+      "agent_type": "agent-factory",
+      "status": "completed",
+      "output": "[agent-factory] Task completed: Select required agents",
+      "execution_id": "20250729_230623"
+    },
+    {
+      "agent_type": "chain-executor",
+      "status": "completed",
+      "output": "[chain-executor] Task completed: Execute agent chain",
+      "execution_id": "20250729_230623"
+    },
+    {
+      "agent_type": "taskdoc-handler",
+      "status": "completed",
+      "output": "[taskdoc-handler] Task completed: Update task completion",
+      "execution_id": "20250729_230623"
+    }
+  ],
+  "final_context": {
+    "USER_REQUEST": "Create a user authentication system",
+    "COMMAND": "smart-task",
+    "PHASE_0_RESULT": "[taskdoc-handler] Task completed: Find existing task or create new one",
+    "PHASE_1_RESULT": "[problem-setup] Task completed: Analyze task requirements and research codebase",
+    "PHASE_2_RESULT": "[chain-planner] Task completed: Plan implementation chain based on analysis",
+    "PHASE_3_RESULT": "[agent-factory] Task completed: Select required agents",
+    "PHASE_4_RESULT": "[chain-executor] Task completed: Execute agent chain",
+    "PHASE_5_RESULT": "[taskdoc-handler] Task completed: Update task completion"
+  },
+  "status": "completed"
+}

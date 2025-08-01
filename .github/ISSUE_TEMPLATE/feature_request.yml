@@ -1,0 +1,175 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the Claude CLI Web UI
+title: "[FEATURE] "
+labels: ["type:enhancement", "status:triage", "priority:low"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: input
+    id: feature-title
+    attributes:
+      label: Feature Title
+      description: A brief title for the feature
+      placeholder: "Add support for..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature is this?
+      options:
+        - new-functionality
+        - enhancement
+        - integration
+        - performance
+        - ui-ux
+        - api
+        - security
+        - monitoring
+        - other
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - low
+        - medium
+        - high
+        - critical
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: What problem does this feature solve?
+      placeholder: "Describe the problem or limitation that this feature would address..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution
+      placeholder: "Describe what you'd like to see implemented..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Provide specific use cases for this feature
+      placeholder: |
+        - As a user, I want to...
+        - When working with..., I need to...
+        - This would help with...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define what constitutes successful implementation
+      placeholder: |
+        - [ ] Feature X should work when...
+        - [ ] Users should be able to...
+        - [ ] The system should respond with...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component would this feature affect?
+      options:
+        - frontend
+        - backend
+        - api
+        - authentication
+        - task-queue
+        - github-integration
+        - terragon-integration
+        - redis-cache
+        - monitoring
+        - deployment
+        - documentation
+        - multiple-components
+        - other
+      default: 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Describe any alternative solutions or workarounds you've considered
+      placeholder: "What other approaches have you considered?"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: implementation-considerations
+    attributes:
+      label: Implementation Considerations
+      description: Check all that apply
+      options:
+        - label: This requires breaking changes
+          required: false
+        - label: This affects existing APIs
+          required: false
+        - label: This requires database changes
+          required: false
+        - label: This affects security
+          required: false
+        - label: This requires third-party integrations
+          required: false
+        - label: This affects performance
+          required: false
+        - label: This requires documentation updates
+          required: false
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups or Examples
+      description: Add any mockups, screenshots, or examples
+      placeholder: "Drag and drop images here or provide links to examples..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: technical-details
+    attributes:
+      label: Technical Details
+      description: Any technical implementation details or constraints
+      placeholder: "Describe any technical considerations, constraints, or implementation details..."
+    validations:
+      required: false
+
+  - type: input
+    id: estimated-effort
+    attributes:
+      label: Estimated Effort
+      description: Your estimate of implementation effort (e.g., small, medium, large)
+      placeholder: "small, medium, large, or specific time estimate"
+    validations:
+      required: false

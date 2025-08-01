@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "functions": {
+    "api/simple-auth.py": {
+      "maxDuration": 10
+    },
+    "api/health.py": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/auth/simple-login",
+      "destination": "/api/simple-auth"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health"
+    }
+  ]
+}

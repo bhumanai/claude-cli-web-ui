@@ -1,0 +1,306 @@
+# Alertmanager configuration for Claude CLI Web UI
+# Handles alert routing, grouping, and notifications
+
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: 'smtp.yourdomain.com:587'
+  smtp_from: 'alerts@yourdomain.com'
+  smtp_auth_username: 'alerts@yourdomain.com'
+  smtp_auth_password: 'your-smtp-password'
+  smtp_require_tls: true
+  
+  # Slack configuration
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  
+  # Pagerduty configuration
+  # pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 5m
+      
+    # Security alerts - immediate notification
+    - match:
+        service: security
+      receiver: 'security-alerts'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 30m
+      
+    # Database alerts
+    - match_re:
+        service: ^(database|cache)$
+      receiver: 'database-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      
+    # Infrastructure alerts
+    - match:
+        service: infrastructure
+      receiver: 'infrastructure-alerts'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 4h
+      
+    # Warning alerts - less frequent notifications
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 6h
+      
+    # Info alerts - daily digest
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 5m
+      group_interval: 1h
+      repeat_interval: 24h
+
+# Inhibition rules (prevent duplicate notifications)
+inhibit_rules:
+  # Inhibit warnings when critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service', 'instance']
+    
+  # Inhibit specific alerts when service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '^(HighErrorRate|HighResponseTime|HighCPUUsage)$'
+    equal: ['service', 'instance']
+
+# Receivers configuration
+receivers:
+  # Default receiver
+  - name: 'default'
+    email_configs:
+      - to: 'admin@yourdomain.com'
+        subject: '[Claude CLI] {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+          {{ end }}
+        headers:
+          X-Priority: 'Normal'
+
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@yourdomain.com,oncall@yourdomain.com'
+        subject: '[CRITICAL] Claude CLI Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🚨 CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Severity: {{ .Labels.severity }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'High'
+          
+    slack_configs:
+      - channel: '#alerts'
+        title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+        
+    # Optional: PagerDuty for critical alerts
+    # pagerduty_configs:
+    #   - routing_key: 'your-pagerduty-integration-key'
+    #     description: '{{ .GroupLabels.alertname }}: {{ .Annotations.summary }}'
+    #     severity: 'critical'
+
+  # Security alerts
+  - name: 'security-alerts'
+    email_configs:
+      - to: 'security@yourdomain.com,admin@yourdomain.com'
+        subject: '[SECURITY] Claude CLI Security Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🔒 SECURITY ALERT 🔒
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+          
+          Please investigate immediately.
+        headers:
+          X-Priority: 'High'
+          
+    slack_configs:
+      - channel: '#security-alerts'
+        title: '🔒 Security Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Database alerts
+  - name: 'database-alerts'
+    email_configs:
+      - to: 'dba@yourdomain.com,admin@yourdomain.com'
+        subject: '[DATABASE] Claude CLI Database Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          💾 DATABASE ALERT 💾
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'Normal'
+          
+    slack_configs:
+      - channel: '#database-alerts'
+        title: '💾 Database Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Infrastructure alerts
+  - name: 'infrastructure-alerts'
+    email_configs:
+      - to: 'devops@yourdomain.com,admin@yourdomain.com'
+        subject: '[INFRA] Claude CLI Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🏗️ INFRASTRUCTURE ALERT 🏗️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'Normal'
+          
+    slack_configs:
+      - channel: '#infrastructure'
+        title: '🏗️ Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'admin@yourdomain.com'
+        subject: '[WARNING] Claude CLI Warning: {{ .GroupLabels.alertname }}'
+        body: |
+          ⚠️ WARNING ⚠️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'Normal'
+          
+    slack_configs:
+      - channel: '#monitoring'
+        title: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Info alerts
+  - name: 'info-alerts'
+    email_configs:
+      - to: 'admin@yourdomain.com'
+        subject: '[INFO] Claude CLI Information: {{ .GroupLabels.alertname }}'
+        body: |
+          ℹ️ INFORMATION ℹ️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+        headers:
+          X-Priority: 'Low'

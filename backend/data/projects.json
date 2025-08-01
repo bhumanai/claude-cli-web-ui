@@ -1,0 +1,46 @@
+{
+  "3bc22ed1-f0b9-4bc5-acbb-3afb97b2c355": {
+    "id": "3bc22ed1-f0b9-4bc5-acbb-3afb97b2c355",
+    "name": "AI Video",
+    "description": "",
+    "created_at": "2025-07-30T15:56:40.332708",
+    "path": "/Users/don/D3",
+    "status": "active",
+    "updated_at": "2025-07-30T15:56:40.332708",
+    "owner": null,
+    "team": []
+  },
+  "4ae8e6e5-597a-4a60-8eeb-1643265f4a5a": {
+    "id": "4ae8e6e5-597a-4a60-8eeb-1643265f4a5a",
+    "name": "Test Project",
+    "description": "Test project description",
+    "created_at": "2025-07-30T21:38:07.004866",
+    "path": "/Users/don/test",
+    "status": "active",
+    "updated_at": "2025-07-30T21:38:07.004866",
+    "owner": null,
+    "team": []
+  },
+  "50c98c49-b644-469a-b71b-b0aa34cd0371": {
+    "id": "50c98c49-b644-469a-b71b-b0aa34cd0371",
+    "name": "AI Videos",
+    "description": "",
+    "created_at": "2025-07-31T00:22:51.041124",
+    "path": "'/Users/don/Gesture Generator/gesture_generator'",
+    "status": "active",
+    "updated_at": "2025-07-31T00:22:51.041124",
+    "owner": null,
+    "team": []
+  },
+  "d813d4f9-124a-4534-aadd-396c0b31d141": {
+    "id": "d813d4f9-124a-4534-aadd-396c0b31d141",
+    "name": "AI Videos",
+    "description": "",
+    "created_at": "2025-07-31T00:23:00.209061",
+    "path": "/Users/don/Gesture Generator/gesture_generator",
+    "status": "active",
+    "updated_at": "2025-07-31T00:23:00.209061",
+    "owner": null,
+    "team": []
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "personas": {
+    "power_user": {
+      "name": "Power User",
+      "goals": [
+        "complete tasks quickly and efficiently",
+        "use keyboard shortcuts when available",
+        "find advanced features and settings"
+      ],
+      "technical_level": "expert",
+      "preferences": [
+        "fast interactions",
+        "minimal confirmations",
+        "keyboard navigation",
+        "bulk operations"
+      ],
+      "pain_points": [
+        "slow loading times",
+        "excessive clicking",
+        "hidden functionality",
+        "confirmation dialogs"
+      ]
+    },
+    "casual_user": {
+      "name": "Casual User", 
+      "goals": [
+        "complete basic tasks without confusion",
+        "understand what each button does",
+        "get help when stuck"
+      ],
+      "technical_level": "beginner",
+      "preferences": [
+        "clear labels and instructions",
+        "visual feedback",
+        "guided flows",
+        "undo capabilities"
+      ],
+      "pain_points": [
+        "complex interfaces",
+        "technical jargon", 
+        "unexpected behavior",
+        "no help available"
+      ]
+    },
+    "business_user": {
+      "name": "Business User",
+      "goals": [
+        "accomplish work tasks efficiently",
+        "maintain data accuracy",
+        "generate reports and insights"
+      ],
+      "technical_level": "intermediate",
+      "preferences": [
+        "reliable functionality",
+        "data validation",
+        "export capabilities",
+        "workflow integration"
+      ],
+      "pain_points": [
+        "data loss",
+        "inconsistent behavior",
+        "manual data entry",
+        "limited reporting"
+      ]
+    }
+  },
+  "flows": {
+    "checkout_flow": {
+      "description": "E-commerce checkout process",
+      "entry_points": [
+        "/cart",
+        "/checkout", 
+        "/product/{id}"
+      ],
+      "expected_checkpoints": [
+        {
+          "step_index": 1,
+          "type": "dom_element",
+          "selector": ".cart-summary",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 3,
+          "type": "url_pattern",
+          "selector": null,
+          "expected_value": ".*/checkout/payment.*"
+        },
+        {
+          "step_index": 5,
+          "type": "text_content",
+          "selector": ".success-message",
+          "expected_value": "order confirmed"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "cart_total_displayed",
+          "type": "element_exists",
+          "selector": ".cart-total",
+          "expected": true,
+          "description": "Cart total should be visible"
+        },
+        {
+          "id": "payment_form_valid",
+          "type": "element_count",
+          "selector": ".payment-form .error",
+          "expected": 0,
+          "description": "No payment form errors should be present"
+        }
+      ]
+    },
+    "login_flow": {
+      "description": "User authentication flow",
+      "entry_points": [
+        "/login",
+        "/auth",
+        "/signin"
+      ],
+      "expected_checkpoints": [
+        {
+          "step_index": 1,
+          "type": "dom_element", 
+          "selector": "input[type=email]",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 2,
+          "type": "dom_element",
+          "selector": "input[type=password]", 
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 3,
+          "type": "url_pattern",
+          "selector": null,
+          "expected_value": ".*/dashboard.*|.*/home.*"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "login_successful",
+          "type": "element_exists",
+          "selector": ".user-menu, .logout-button",
+          "expected": true,
+          "description": "User menu should be visible after login"
+        },
+        {
+          "id": "no_error_messages",
+          "type": "element_count",
+          "selector": ".error-message",
+          "expected": 0,
+          "description": "No error messages should be displayed"
+        }
+      ]
+    },
+    "claude_cli_flow": {
+      "description": "Claude CLI Web UI comprehensive testing flow",
+      "entry_points": [
+        "https://claudeui-rouge.vercel.app/",
+        "https://claude-cli-p2dfuf6gl-bhumanais-projects.vercel.app/"
+      ],
+      "expected_checkpoints": [
+        {
+          "step_index": 1,
+          "type": "dom_element",
+          "selector": ".terminal-container, .terminal",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 2,
+          "type": "dom_element", 
+          "selector": "input[type=text], .command-input",
+          "expected_value": "exists"
+        },
+        {
+          "step_index": 3,
+          "type": "text_content",
+          "selector": ".connection-status, .status-indicator",
+          "expected_value": "connected|disconnected|connecting"
+        }
+      ],
+      "assertions": [
+        {
+          "id": "terminal_visible",
+          "type": "element_exists",
+          "selector": ".terminal-container, .terminal, .console",
+          "expected": true,
+          "description": "Terminal container should be visible"
+        },
+        {
+          "id": "input_field_available",
+          "type": "element_exists",
+          "selector": "input[type=text], .command-input, textarea",
+          "expected": true,
+          "description": "Command input field should be available"
+        },
+        {
+          "id": "connection_indicator",
+          "type": "element_exists",
+          "selector": ".connection-status, .status, .websocket-status",
+          "expected": true,
+          "description": "Connection status indicator should be present"
+        },
+        {
+          "id": "no_major_errors",
+          "type": "element_count",
+          "selector": ".error-message:not(.hidden), .alert-error",
+          "expected": 0,
+          "description": "No visible error messages on page load"
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "artifact_retention_days": 30,
+    "max_artifact_size_gb": 10,
+    "screenshot_compression": "png",
+    "video_format": "mp4",
+    "max_retries": 3,
+    "timeout_seconds": 30,
+    "stability_wait_ms": 2000
+  }
+}
