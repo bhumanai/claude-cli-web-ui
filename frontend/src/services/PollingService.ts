@@ -1,9 +1,8 @@
 /**
- * Polling-based fallback service for when WebSocket connections are not available
- * This service polls HTTP endpoints to simulate real-time communication
+ * Polling-based service for HTTP communication
+ * NO MOCK BACKEND - REQUIRES REAL BACKEND ONLY!
  */
 
-import { mockBackend } from './MockBackendService'
 import { getApiUrl } from '@/config/backend'
 
 export interface PollingMessage {
@@ -15,7 +14,7 @@ export interface PollingMessage {
 export class PollingService {
   private sessionId: string
   private baseUrl: string
-  private pollInterval: number = 5000 // 5 seconds - reduced frequency to prevent overload
+  private pollInterval: number = 5000 // 5 seconds
   private isPolling: boolean = false
   private pollTimeoutId: NodeJS.Timeout | null = null
   private messageHandlers: Map<string, (data: any) => void> = new Map()
@@ -50,68 +49,78 @@ export class PollingService {
     this.notifyConnectionHandlers(false)
   }
 
+  isConnected(): boolean {
+    return this.isPolling
+  }
+
+  onMessage(type: string, handler: (data: any) => void): void {
+    this.messageHandlers.set(type, handler)
+  }
+
+  offMessage(type: string): void {
+    this.messageHandlers.delete(type)
+  }
+
+  onConnectionChange(handler: (isConnected: boolean) => void): void {
+    this.connectionHandlers.push(handler)
+  }
+
+  private notifyConnectionHandlers(isConnected: boolean): void {
+    this.connectionHandlers.forEach(handler => handler(isConnected))
+  }
+
   private startPolling(): void {
     if (!this.isPolling) return
-
-    // Stop polling if too many consecutive errors
-    if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-      console.error('Too many consecutive polling errors, stopping polling')
-      this.disconnect()
-      this.notifyConnectionHandlers(false)
-      return
-    }
-
-    this.pollTimeoutId = setTimeout(async () => {
-      try {
-        await this.poll()
-        this.consecutiveErrors = 0 // Reset error count on success
-      } catch (error) {
-        console.warn('Polling error:', error)
-        this.consecutiveErrors++
-      }
-      
+    
+    // Poll immediately, then schedule next poll
+    this.poll().then(() => {
       if (this.isPolling) {
-        this.startPolling() // Schedule next poll
+        this.pollTimeoutId = setTimeout(() => this.startPolling(), this.pollInterval)
       }
-    }, this.pollInterval)
+    })
   }
 
   private async poll(): Promise<void> {
+    if (!this.isPolling) return
+    
     try {
-      const response = await fetch(`${this.baseUrl}/api/sessions/${this.sessionId}/messages?since=${this.lastPollTime}`)
+      const response = await fetch(`${this.baseUrl}/api/sessions/${this.sessionId}/messages?since=${this.lastPollTime}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('claude-cli-auth') || ''
+        }
+      })
       
-      if (!response.ok) {
-        throw new Error(`Polling failed: ${response.status}`)
-      }
-
-      const data = await response.json()
-      const messages: PollingMessage[] = data.messages || data
-      
-      for (const message of messages) {
-        this.handleMessage(message)
-        this.lastPollTime = Math.max(this.lastPollTime, message.timestamp || Date.now())
-      }
-      
-      // Update last poll time if no messages
-      if (messages.length === 0) {
+      if (response.ok) {
+        const data = await response.json()
+        if (data.messages && Array.isArray(data.messages)) {
+          for (const message of data.messages) {
+            this.handleMessage({
+              type: message.type,
+              data: message.data,
+              timestamp: message.timestamp || Date.now()
+            })
+          }
+        }
         this.lastPollTime = Date.now()
       }
       
     } catch (error) {
-      // Fallback to mock backend
-      console.debug('Poll failed, using mock backend:', error)
-      try {
-        const mockData = await mockBackend.getMessages(this.sessionId, this.lastPollTime)
-        for (const message of mockData.messages) {
-          this.handleMessage({
-            type: message.type,
-            data: message.data,
-            timestamp: Date.now()
-          })
-        }
-        this.lastPollTime = Date.now()
-      } catch (mockError) {
-        console.error('Mock backend also failed:', mockError)
+      // NO MOCK FALLBACK - REAL BACKEND REQUIRED!
+      console.error('Poll failed - BACKEND REQUIRED:', error)
+      this.consecutiveErrors++
+      
+      if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+        console.error('Too many consecutive errors - BACKEND NOT AVAILABLE')
+        this.handleMessage({
+          type: 'error',
+          data: {
+            message: 'BACKEND REQUIRED - NO MOCK MODE! Make sure the full backend is running!',
+            error: 'backend_required'
+          },
+          timestamp: Date.now()
+        })
       }
     }
   }
@@ -123,54 +132,27 @@ export class PollingService {
     }
   }
 
-  onMessage(type: string, handler: (data: any) => void): void {
-    this.messageHandlers.set(type, handler)
-  }
-
-  onConnection(handler: (isConnected: boolean) => void): void {
-    this.connectionHandlers.push(handler)
-  }
-
-  private notifyConnectionHandlers(isConnected: boolean): void {
-    this.connectionHandlers.forEach(handler => handler(isConnected))
-  }
-
-  async sendMessage(type: string, data: any): Promise<void> {
+  async sendCommand(command: string): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/sessions/${this.sessionId}/messages`, {
+      const response = await fetch(`${this.baseUrl}/api/commands/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': localStorage.getItem('claude-cli-auth') || ''
         },
-        body: JSON.stringify({ type, data })
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          command
+        })
       })
-
+      
       if (!response.ok) {
-        throw new Error(`Send message failed: ${response.status}`)
+        throw new Error(`Backend returned ${response.status}`)
       }
-    } catch (error) {
-      console.error('Failed to send message:', error)
-      throw error
-    }
-  }
-
-  async executeCommand(command: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/sessions/${this.sessionId}/commands`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Command execution failed: ${response.status}`)
-      }
-
+      
       const result = await response.json()
       
-      // First notify command started
+      // Notify about command start
       this.handleMessage({
         type: 'command_started',
         data: {
@@ -180,24 +162,15 @@ export class PollingService {
         timestamp: Date.now()
       })
       
-      // Then simulate command updates for consistency
+      // Simulate command updates for now
       setTimeout(() => {
         this.handleMessage({
           type: 'command_update',
           data: {
             id: result.id,
-            output: [{content: result.output, type: 'stdout'}],
+            output: [{content: result.output || 'Command sent to backend', type: 'stdout'}],
             isPartial: false,
-            status: 'running'
-          },
-          timestamp: Date.now()
-        })
-        
-        this.handleMessage({
-          type: 'command_finished',
-          data: {
-            id: result.id,
-            status: result.status
+            status: 'completed'
           },
           timestamp: Date.now()
         })
@@ -205,53 +178,8 @@ export class PollingService {
       
       return result
     } catch (error) {
-      console.error('Failed to execute command, using mock backend:', error)
-      
-      // Fallback to mock backend
-      const mockResult = await mockBackend.executeCommand(this.sessionId, command)
-      
-      // First notify command started
-      this.handleMessage({
-        type: 'command_started',
-        data: {
-          id: mockResult.id,
-          command: command
-        },
-        timestamp: Date.now()
-      })
-      
-      // Simulate command updates
-      setTimeout(() => {
-        this.handleMessage({
-          type: 'command_update',
-          data: {
-            id: mockResult.id,
-            output: [{content: mockResult.output, type: 'stdout'}],
-            isPartial: false,
-            status: 'running'
-          },
-          timestamp: Date.now()
-        })
-        
-        this.handleMessage({
-          type: 'command_finished',
-          data: {
-            id: mockResult.id,
-            status: mockResult.status
-          },
-          timestamp: Date.now()
-        })
-      }, 100)
-      
-      return mockResult
-    }
-  }
-
-  getMetrics() {
-    return {
-      isPolling: this.isPolling,
-      pollInterval: this.pollInterval,
-      lastPollTime: this.lastPollTime
+      console.error('Failed to execute command:', error)
+      throw new Error('BACKEND REQUIRED - NO MOCK MODE! Run the full backend!')
     }
   }
 }
