@@ -1,0 +1,35 @@
+{
+  "id": "TASK-DARKMODE-001",
+  "name": "Add Light/Dark Mode Toggle to Claude CLI Web UI",
+  "description": "Implement a theme switcher that allows users to toggle between light and dark modes in the Claude CLI Web UI, with persistent preference storage",
+  "requirements": [
+    "Toggle button in the UI header",
+    "Smooth transition between themes",
+    "Persist user preference in localStorage",
+    "Respect system preference on first load",
+    "Apply theme to all UI components",
+    "Ensure text remains readable in both modes",
+    "Handle code syntax highlighting for both themes"
+  ],
+  "constraints": [
+    "No flash of unstyled content (FOUC)",
+    "Theme change must be instant (<50ms)",
+    "Must work without JavaScript (basic theme)",
+    "Accessible contrast ratios (WCAG AA)",
+    "No external theme libraries",
+    "Maximum 200 lines of code"
+  ],
+  "evaluation_criteria": {
+    "functionality": 0.3,
+    "security": 0.15,
+    "performance": 0.2,
+    "accessibility": 0.2,
+    "code_quality": 0.15
+  },
+  "existing_context": {
+    "frontend_stack": "React + TypeScript + Tailwind CSS",
+    "current_theme": "Dark only",
+    "component_structure": "src/components/",
+    "state_management": "React Context API"
+  }
+}

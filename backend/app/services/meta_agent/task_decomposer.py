@@ -26,12 +26,12 @@ logger = get_logger(__name__)
 
 
 class TaskComplexity(Enum):
-    """Task complexity levels."""
-    MICRO = "micro"          # < 5 minutes, single atomic action
-    SMALL = "small"          # 5-15 minutes, few related actions
-    MEDIUM = "medium"        # 15-60 minutes, moderate complexity
-    LARGE = "large"          # 1-4 hours, significant complexity
-    COMPLEX = "complex"      # > 4 hours, needs decomposition
+    """Task complexity levels based on LINES OF CODE not time."""
+    MICRO = "micro"          # 5-20 lines of code
+    SMALL = "small"          # 20-50 lines of code
+    MEDIUM = "medium"        # 50-100 lines of code
+    LARGE = "large"          # 100-200 lines of code
+    COMPLEX = "complex"      # > 200 lines, MUST be decomposed
 
 
 class TaskStatus(Enum):

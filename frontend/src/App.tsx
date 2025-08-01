@@ -15,7 +15,7 @@ import { SecurityDashboard } from './components/SecurityDashboard'
 import { AgentMonitor } from './components/AgentMonitor'
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext'
 import { PageLoading } from './components/LoadingIndicator'
-import { useTheme } from './hooks/useTheme'
+import { ThemeProvider, useTheme } from './hooks/useTheme'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useSessionPersistence, useUIStateRestoration } from './hooks/useSessionPersistence'
 import { useApiRetry } from './hooks/useRetry'
@@ -473,14 +473,16 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SecurityProvider
-      enableSessionTimeout={true}
-      enableSecurityMonitoring={true}
-      enableRateLimit={true}
-    >
+    <ThemeProvider>
+      <SecurityProvider
+        enableSessionTimeout={true}
+        enableSecurityMonitoring={true}
+        enableRateLimit={true}
+      >
         <NotificationProvider>
           <AppContent />
         </NotificationProvider>
       </SecurityProvider>
-    )
-  }
+    </ThemeProvider>
+  )
+}

@@ -1,0 +1,16 @@
+{
+  "active": false,
+  "current_task_index": 0,
+  "tasks": [
+    "Create hello_world() function that returns 'Hello, World!'",
+    "Add type hints to specify str return type",
+    "Add a docstring explaining the function",
+    "Create test_hello_world() to verify the output",
+    "Add if __name__ == '__main__' block to print result"
+  ],
+  "completed_tasks": [],
+  "metadata": {
+    "created_at": "2025-08-01T17:00:00Z",
+    "workflow": "hello_world_example"
+  }
+}

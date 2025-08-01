@@ -12,7 +12,8 @@ from app.api.endpoints import (
     task_queues,
     tasks,
     execution,
-    github
+    github,
+    meta_agent
 )
 
 # Create main API router
@@ -33,3 +34,6 @@ router.include_router(execution.router, prefix="/api/v1", tags=["execution"])
 
 # GitHub integration endpoints
 router.include_router(github.router, prefix="/api", tags=["github"])
+
+# Meta-Agent System v4.0 endpoints
+router.include_router(meta_agent.router, tags=["meta-agent"])
