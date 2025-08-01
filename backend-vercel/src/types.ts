@@ -57,3 +57,62 @@ export interface GitHubConnection {
   project_id: string;
   status: 'active' | 'inactive';
 }
+
+// Additional types needed by other modules
+export interface ApiResponse<T = any> {
+  data: T | null;
+  error: {
+    message: string;
+    code: string;
+  } | null;
+}
+
+export interface RateLimitInfo {
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email?: string;
+  created_at: string;
+}
+
+export interface AuthTokens {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+}
+
+export interface TaskCreateRequest {
+  name: string;
+  description?: string;
+  command?: string;
+  priority?: TaskPriority;
+  project_id: string;
+}
+
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface SSEMessage {
+  type: string;
+  data: any;
+  id?: string;
+  retry?: number;
+}
+
+export interface QueueStatus {
+  active: number;
+  waiting: number;
+  completed: number;
+  failed: number;
+}
+
+export interface TerragoWorker {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive';
+  capabilities: string[];
+}
