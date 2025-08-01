@@ -3,7 +3,7 @@ import { ArrowLeft, Calendar, Clock, AlertCircle, Info, TestTube } from 'lucide-
 import { Task } from '../types'
 import { Terminal } from './Terminal'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { useWebSocketFallback } from '../hooks/useWebSocketFallback'
+// NO MORE SIMPLE MODE FALLBACK!
 import { generateSessionId } from '../utils/helpers'
 import { getApiUrl } from '@/config/backend'
 
@@ -19,20 +19,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task, onBack, on
   const [testing, setTesting] = useState(false)
   const sessionId = generateSessionId()
   
-  // Try WebSocket first, fallback to HTTP if not available
+  // ONLY use WebSocket - NO FALLBACK TO SIMPLE MODE!
   const wsHook = useWebSocket(sessionId)
-  const fallbackHook = useWebSocketFallback(sessionId)
-  
-  // Use fallback if WebSocket fails
-  const activeHook = wsHook.isConnected ? wsHook : fallbackHook
   const {
     isConnected,
     commandHistory,
     sendCommand,
     clearHistory
-  } = activeHook
+  } = wsHook
   
-  const showConnectionWarning = 'showConnectionWarning' in fallbackHook ? fallbackHook.showConnectionWarning : false
+  // If not connected to full backend, show error
+  const showConnectionError = !isConnected
 
   useEffect(() => {
     // Load task.md content if available
@@ -345,14 +342,14 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task, onBack, on
           <div className="bg-gray-900 rounded-lg border border-gray-700 h-full flex flex-col">
             <div className="p-4 border-b border-gray-700">
               <h3 className="text-lg font-semibold text-gray-100">Task Terminal</h3>
-              {showConnectionWarning && (
-                <div className="mt-2 p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+              {showConnectionError && (
+                <div className="mt-2 p-3 bg-red-900/30 border border-red-700 rounded-lg">
                   <div className="flex items-start gap-2">
-                    <Info className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-yellow-300">
-                      <p className="font-semibold mb-1">Running in Simple Server Mode</p>
-                      <p className="mb-2">WebSocket and Claude CLI features are not available. Commands will be executed via HTTP.</p>
-                      <p className="text-xs">For full features, run: <code className="px-1 py-0.5 bg-yellow-900/50 rounded">python main.py</code></p>
+                    <Info className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-red-300">
+                      <p className="font-semibold mb-1">❌ Full Backend Required</p>
+                      <p className="mb-2">Not connected to the full Claude CLI backend. Simple mode has been PERMANENTLY REMOVED.</p>
+                      <p className="text-xs">Run the full backend: <code className="px-1 py-0.5 bg-red-900/50 rounded">cd backend && python main.py</code></p>
                     </div>
                   </div>
                 </div>
