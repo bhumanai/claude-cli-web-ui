@@ -202,4 +202,14 @@ export class PollingService {
   async executeCommand(command: string): Promise<any> {
     return this.sendCommand(command)
   }
+
+  // Add getMetrics method for HybridConnectionService
+  getMetrics() {
+    return {
+      pollInterval: this.pollInterval,
+      consecutiveErrors: this.consecutiveErrors,
+      lastPollTime: this.lastPollTime,
+      isPolling: this.isPolling
+    }
+  }
 }
