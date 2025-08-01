@@ -13,10 +13,6 @@
   
   "build": {
     "env": {
-      "JWT_SECRET": "@jwt-secret",
-      "GITHUB_TOKEN": "@github-token",
-      "UPSTASH_REDIS_REST_TOKEN": "@upstash-redis-token",
-      "UPSTASH_REDIS_REST_URL": "@upstash-redis-url"
     }
   },
   
