@@ -254,7 +254,10 @@ export class GitHubServiceWithConnections {
       '```',
       '',
       `## Execution`,
-      `@terragon-labs execute this task and report results below`,
+      `**To activate Terragon:**`,
+      `1. Add a comment to this issue mentioning @terragon-labs`,
+      `2. Example: "@terragon-labs please execute this task"`,
+      `3. Terragon will respond with 👀 emoji and begin work`,
       '',
     ];
 
