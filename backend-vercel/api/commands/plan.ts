@@ -103,6 +103,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Create GitHub issue with @terragon-labs mention
     try {
+      // Debug environment check
+      console.log('Environment debug:', {
+        GITHUB_TOKEN: process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN.substring(0, 8)}...` : 'NOT SET',
+        GITHUB_REPO_OWNER: process.env.GITHUB_REPO_OWNER || 'NOT SET',
+        GITHUB_REPO_NAME: process.env.GITHUB_REPO_NAME || 'NOT SET',
+        reqBodyRepoOwner: req.body.repoOwner,
+        reqBodyRepoName: req.body.repoName,
+        projectId: projectId
+      });
+
       // Dynamic import to avoid deployment issues
       const { GitHubServiceWithConnections } = await import('../../src/lib/github-with-connections');
       const githubService = new GitHubServiceWithConnections(projectId, req.body.repoOwner, req.body.repoName);
@@ -115,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (githubError) {
       // Log error but don't fail task creation
       console.error('Failed to create GitHub issue:', githubError);
+      console.error('GitHub error details:', githubError instanceof Error ? githubError.message : githubError);
       // Add error to metadata so user knows GitHub sync failed
       task.metadata = {
         ...task.metadata,
