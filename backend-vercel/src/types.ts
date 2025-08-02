@@ -31,6 +31,13 @@ export interface Task {
   github_issue_number?: number;
   tags?: string[];
   metadata?: Record<string, any>;
+  
+  // Additional fields used in various endpoints
+  input_data?: any;
+  output_data?: any;
+  error_message?: string;
+  parent_task_id?: string;
+  worker_id?: string;
 }
 
 export interface GitHubIssue {
@@ -71,6 +78,7 @@ export interface RateLimitInfo {
   limit: number;
   remaining: number;
   reset: number;
+  window?: number;
 }
 
 export interface User {
@@ -79,12 +87,16 @@ export interface User {
   email?: string;
   created_at: string;
   user_id?: string; // For backwards compatibility
+  permissions?: string[];
+  is_active?: boolean;
+  last_login?: Date;
 }
 
 export interface AuthTokens {
   access_token: string;
   refresh_token?: string;
   expires_in: number;
+  token_type?: string;
 }
 
 export interface TaskCreateRequest {
@@ -120,4 +132,5 @@ export interface TerragoWorker {
   name: string;
   status: 'active' | 'inactive';
   capabilities: string[];
+  task_id?: string;
 }

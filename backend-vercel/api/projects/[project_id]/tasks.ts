@@ -4,7 +4,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { GitHubServiceWithConnections } from '../../src/lib/github-with-connections';
+// GitHub service will be imported dynamically to avoid deployment issues
 
 interface Task {
   id: string;
@@ -102,6 +102,8 @@ async function createTask(req: VercelRequest, res: VercelResponse, project_id: s
 
     // Create GitHub issue with @terragon-labs mention
     try {
+      // Dynamic import to avoid deployment issues
+      const { GitHubServiceWithConnections } = await import('../../src/lib/github-with-connections');
       const githubService = new GitHubServiceWithConnections(project_id);
       const issueNumber = await githubService.createTaskIssue(task as any);
       

@@ -80,10 +80,10 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: task.updated_at,
       })),
       health: {
-        is_healthy: queueStatus.failed_tasks < queueStatus.completed_tasks * 0.1, // Less than 10% failure rate
-        total_processed: queueStatus.completed_tasks + queueStatus.failed_tasks,
-        success_rate: queueStatus.completed_tasks > 0 
-          ? (queueStatus.completed_tasks / (queueStatus.completed_tasks + queueStatus.failed_tasks)) * 100 
+        is_healthy: (queueStatus.failed_tasks || queueStatus.failed) < (queueStatus.completed_tasks || queueStatus.completed) * 0.1, // Less than 10% failure rate
+        total_processed: (queueStatus.completed_tasks || queueStatus.completed) + (queueStatus.failed_tasks || queueStatus.failed),
+        success_rate: (queueStatus.completed_tasks || queueStatus.completed) > 0 
+          ? ((queueStatus.completed_tasks || queueStatus.completed) / ((queueStatus.completed_tasks || queueStatus.completed) + (queueStatus.failed_tasks || queueStatus.failed))) * 100 
           : 100,
       },
     };

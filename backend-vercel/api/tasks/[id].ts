@@ -171,10 +171,11 @@ async function updateTask(req: VercelRequest, res: VercelResponse, user: any, ta
       return sendError(res, 'Task not found', 'TASK_NOT_FOUND', 404);
     }
 
-    // Update task properties
+    // Update task properties, converting date strings to Date objects
     const updatedTask: Task = {
       ...task,
       ...sanitizedData,
+      scheduled_at: sanitizedData.scheduled_at ? new Date(sanitizedData.scheduled_at) : task.scheduled_at,
       updated_at: new Date(),
     };
 

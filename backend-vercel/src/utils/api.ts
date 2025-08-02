@@ -19,6 +19,7 @@ export function cors(req: VercelRequest, res: VercelResponse): boolean {
     'https://claudeui-jwyp7qcq4-bhuman.vercel.app',
     'https://claudeui-fvw6ne2mm-bhuman.vercel.app',
     'https://claude-cli-frontend.vercel.app', 
+    'https://bhumanai.github.io',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000',
@@ -37,7 +38,7 @@ export function cors(req: VercelRequest, res: VercelResponse): boolean {
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-GitHub-Repo-Owner, X-GitHub-Repo-Name');
   res.setHeader('Access-Control-Expose-Headers', 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
   res.setHeader('Vary', 'Origin'); // Important for caching
@@ -57,13 +58,18 @@ export function cors(req: VercelRequest, res: VercelResponse): boolean {
 export function createApiResponse<T>(
   data: T | null = null,
   error: { message: string; code: string; details?: any } | null = null,
-  meta?: ApiResponse<T>['meta']
+  meta?: any
 ): ApiResponse<T> {
-  return {
+  const response: ApiResponse<T> = {
     data,
-    error,
-    meta,
+    error
   };
+  
+  if (meta) {
+    (response as any).meta = meta;
+  }
+  
+  return response;
 }
 
 /**
@@ -73,7 +79,7 @@ export function sendSuccess<T>(
   res: VercelResponse,
   data: T,
   status: number = 200,
-  meta?: ApiResponse<T>['meta']
+  meta?: any
 ): void {
   const response = createApiResponse(data, null, meta);
   res.status(status).json(response);
@@ -194,7 +200,7 @@ export function setRateLimitHeaders(res: VercelResponse, info: RateLimitInfo): v
   res.setHeader('X-RateLimit-Limit', info.limit.toString());
   res.setHeader('X-RateLimit-Remaining', info.remaining.toString());
   res.setHeader('X-RateLimit-Reset', info.reset.toString());
-  res.setHeader('X-RateLimit-Window', info.window.toString());
+  res.setHeader('X-RateLimit-Window', info.window?.toString() || '0');
 }
 
 /**
@@ -204,7 +210,7 @@ export function requirePermission(
   user: User,
   requiredPermission: string
 ): { success: true } | { success: false; error: string; status: number } {
-  if (!user.permissions.includes(requiredPermission) && !user.permissions.includes('admin')) {
+  if (!user.permissions?.includes(requiredPermission) && !user.permissions?.includes('admin')) {
     return {
       success: false,
       error: `Permission required: ${requiredPermission}`,
@@ -274,7 +280,7 @@ export function createPaginationMeta(
   page: number,
   limit: number,
   total: number
-): ApiResponse['meta']['pagination'] {
+): any {
   const totalPages = Math.ceil(total / limit);
 
   return {

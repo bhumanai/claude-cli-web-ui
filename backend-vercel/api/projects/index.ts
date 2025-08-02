@@ -102,7 +102,7 @@ async function createProject(req: VercelRequest, res: VercelResponse) {
     console.error('Create project error:', error);
     return res.status(500).json({ 
       data: null, 
-      error: { message: `Failed to create project: ${error.message}`, code: 'CREATE_PROJECT_ERROR' } 
+      error: { message: `Failed to create project: ${error instanceof Error ? error.message : String(error)}`, code: 'CREATE_PROJECT_ERROR' } 
     });
   }
 }

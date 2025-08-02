@@ -10,9 +10,13 @@ import { connections } from '../../api/github';
 
 export class GitHubServiceWithConnections {
   private projectId: string;
+  private repoOwner?: string;
+  private repoName?: string;
 
-  constructor(projectId: string) {
+  constructor(projectId: string, repoOwner?: string, repoName?: string) {
     this.projectId = projectId;
+    this.repoOwner = repoOwner;
+    this.repoName = repoName;
   }
 
   /**
@@ -25,13 +29,25 @@ export class GitHubServiceWithConnections {
     );
 
     if (!connection || !connection.token || !connection.repository) {
-      // Fallback to environment variables
+      // Fallback to environment variables and constructor parameters
       const token = process.env.GITHUB_TOKEN;
-      const owner = process.env.GITHUB_REPO_OWNER;
-      const repo = process.env.GITHUB_REPO_NAME;
+      const owner = this.repoOwner || process.env.GITHUB_REPO_OWNER;
+      const repo = this.repoName || process.env.GITHUB_REPO_NAME;
+
+      // Debug logging
+      console.log(`GitHub auth debug:`, {
+        hasToken: !!token,
+        tokenPrefix: token ? token.substring(0, 8) + '...' : 'none',
+        owner: owner || 'none',
+        repo: repo || 'none',
+        projectId: this.projectId,
+        repoOwnerParam: this.repoOwner,
+        repoNameParam: this.repoName,
+        connectionsCount: connections.size
+      });
 
       if (!token || !owner || !repo) {
-        console.warn(`No GitHub connection found for project ${this.projectId}`);
+        console.warn(`No GitHub connection found for project ${this.projectId}. Missing: ${!token ? 'token ' : ''}${!owner ? 'owner ' : ''}${!repo ? 'repo' : ''}`);
         return null;
       }
 
@@ -222,15 +238,23 @@ export class GitHubServiceWithConnections {
    */
   private formatTaskBody(task: Task): string {
     const sections = [
-      `@terragon-labs please execute this task:`,
+      `## Task Execution Request`,
       '',
       `**Task ID:** ${task.id}`,
       `**Project ID:** ${task.project_id}`,
-      `**Command:** \`${task.command}\``,
-      `**Status:** ${task.status}`,
       `**Priority:** ${task.priority}`,
+      `**Status:** ${task.status}`,
       '',
-      `**Description:** ${task.description || 'No description provided'}`,
+      `## Description`,
+      task.description || 'No description provided',
+      '',
+      `## Command`,
+      '```',
+      task.command || 'No command specified',
+      '```',
+      '',
+      `## Execution`,
+      `@terragon-labs execute this task and report results below`,
       '',
     ];
 

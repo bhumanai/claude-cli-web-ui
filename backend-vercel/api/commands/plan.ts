@@ -84,8 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Import the same modules used by the task endpoint
-    const { GitHubServiceWithConnections } = require('../../src/lib/github-with-connections');
+    // Dynamic import to avoid deployment issues
     
     // Create task object directly
     const task = {
@@ -104,7 +103,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Create GitHub issue with @terragon-labs mention
     try {
-      const githubService = new GitHubServiceWithConnections(projectId);
+      // Dynamic import to avoid deployment issues
+      const { GitHubServiceWithConnections } = await import('../../src/lib/github-with-connections');
+      const githubService = new GitHubServiceWithConnections(projectId, req.body.repoOwner, req.body.repoName);
       const issueNumber = await githubService.createTaskIssue(task as any);
       
       // Update task with GitHub issue number

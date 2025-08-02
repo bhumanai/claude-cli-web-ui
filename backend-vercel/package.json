@@ -4,7 +4,7 @@
   "description": "Vercel serverless backend for Claude CLI Web UI",
   "main": "index.js",
   "scripts": {
-    "dev": "node -e \"console.log('Starting Vercel Dev Server...')\" && vercel dev",
+    "start": "vercel dev --listen 8000",
     "build": "echo 'Skipping build for serverless functions'",
     "deploy": "vercel --prod",
     "test": "jest",

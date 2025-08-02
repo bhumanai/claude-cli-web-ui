@@ -88,11 +88,12 @@ export class AuthManager {
     }
 
     return {
+      id: decoded.user_id,
       user_id: decoded.user_id,
       username: decoded.username,
       is_active: true,
       permissions: decoded.permissions || [],
-      created_at: new Date(),
+      created_at: new Date().toISOString(),
     };
   }
 
@@ -212,13 +213,15 @@ export class UserService {
 
   static async createUser(username: string, password: string, permissions: string[] = []): Promise<User> {
     const password_hash = await AuthManager.hashPassword(password);
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const user: User & { password_hash: string } = {
-      user_id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: userId,
+      user_id: userId,
       username,
       password_hash,
       is_active: true,
       permissions,
-      created_at: new Date(),
+      created_at: new Date().toISOString(),
     };
 
     this.users.set(username, user);
