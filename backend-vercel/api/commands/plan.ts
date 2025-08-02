@@ -115,6 +115,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Dynamic import to avoid deployment issues
       const { GitHubServiceWithConnections } = await import('../../src/lib/github-with-connections');
+      
+      // Check for GitHub token in header or body
+      const githubToken = req.headers['x-github-token'] as string || req.body.githubToken;
+      if (githubToken) {
+        process.env.GITHUB_TOKEN = githubToken;
+      }
+      
       const githubService = new GitHubServiceWithConnections(projectId, req.body.repoOwner, req.body.repoName);
       const issueNumber = await githubService.createTaskIssue(task as any);
       

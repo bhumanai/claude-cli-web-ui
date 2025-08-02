@@ -38,7 +38,7 @@ export function cors(req: VercelRequest, res: VercelResponse): boolean {
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-GitHub-Repo-Owner, X-GitHub-Repo-Name');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-GitHub-Repo-Owner, X-GitHub-Repo-Name, X-GitHub-Token');
   res.setHeader('Access-Control-Expose-Headers', 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
   res.setHeader('Vary', 'Origin'); // Important for caching

@@ -47,7 +47,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           session_id: session_id || `session_${Date.now()}`,
           project_id: project_id || 'default-project',
           repoOwner: repoOwner,
-          repoName: repoName
+          repoName: repoName,
+          githubToken: req.body.githubToken
+        },
+        headers: {
+          ...req.headers
         }
       };
       
