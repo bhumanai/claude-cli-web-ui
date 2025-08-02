@@ -49,4 +49,4 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   sendSuccess(res, healthCheck);
 }
 
-export default asyncHandler(handler);
+export default asyncHandler(handler);# Force redeploy Fri Aug  1 22:29:01 EDT 2025
